@@ -1,0 +1,25 @@
+<com.facebook.shimmer.ShimmerFrameLayout android:id="@+id/shimmer_view_container"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    app:shimmer_base_color="@color/shimmer_base"
+    app:shimmer_highlight_color="@color/shimmer_highlight"
+    app:shimmer_intensity="0.3"
+    app:shimmer_duration="1200"
+    app:shimmer_auto_start="true"
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <!-- Your Placeholder UI Here -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="200dp"
+            android:background="@color/shimmer_base" />
+
+    </LinearLayout>
+
+</com.facebook.shimmer.ShimmerFrameLayout>
