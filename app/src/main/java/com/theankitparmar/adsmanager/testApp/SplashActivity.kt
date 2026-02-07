@@ -16,7 +16,7 @@ class SplashActivity : AppCompatActivity() {
 
         // Wait for 5 seconds (5000 milliseconds) before moving to MainActivity
         Handler(Looper.getMainLooper()).postDelayed({
-            val intent = Intent(this, MainActivity::class.java)
+            val intent = Intent(this, TestAppOpenActivity::class.java)
             startActivity(intent)
             finish()
         }, 5000)

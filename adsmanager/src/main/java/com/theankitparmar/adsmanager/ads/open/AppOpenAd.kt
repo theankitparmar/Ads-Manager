@@ -48,17 +48,11 @@ class AppOpenAd(
     }
 
     override suspend fun loadAdInternal(): AdResult<Unit> = withContext(Dispatchers.Main) {
-        // CRITICAL FIX: Check if we can load again
-        if (!canLoadAgain) {
-            return@withContext AdResult.Error("In cooldown period")
-        }
+        // Remove cooldown check - always try to load
 
         if (isAdAvailable()) {
             return@withContext AdResult.Success(Unit)
         }
-
-        lastLoadAttemptTime = System.currentTimeMillis()
-        canLoadAgain = false // Enter cooldown
 
         return@withContext try {
             val context = getContext() ?: return@withContext AdResult.Error("Context is null")
@@ -72,37 +66,21 @@ class AppOpenAd(
                     com.google.android.gms.ads.appopen.AppOpenAd.APP_OPEN_AD_ORIENTATION_PORTRAIT,
                     object : com.google.android.gms.ads.appopen.AppOpenAd.AppOpenAdLoadCallback() {
                         override fun onAdLoaded(ad: com.google.android.gms.ads.appopen.AppOpenAd) {
-                            // Reset cooldown and retry count on success
-                            canLoadAgain = true
-                            retryAttempt = 0
                             appOpenAd = ad
                             loadTime = System.currentTimeMillis()
 
                             ad.fullScreenContentCallback = object : com.google.android.gms.ads.FullScreenContentCallback() {
                                 override fun onAdDismissedFullScreenContent() {
+                                    Log.d("AppOpenAd", "Ad dismissed")
                                     appOpenAd = null
                                     _listener?.onAdDismissed()
-                                    // Schedule reload with delay instead of immediate reload
-                                    if (config.enableAutoReload) {
-                                        scope.launch {
-                                            delay(30000L) // Wait 30 seconds before reloading
-                                            canLoadAgain = true
-                                            loadAd()
-                                        }
-                                    }
+                                    // Don't auto-reload - let AdHelper handle it
                                 }
 
                                 override fun onAdFailedToShowFullScreenContent(error: com.google.android.gms.ads.AdError) {
+                                    Log.e("AppOpenAd", "Ad failed to show: ${error.message}")
                                     appOpenAd = null
                                     _listener?.onAdFailedToShow(error.message)
-                                    // Schedule reload with delay
-                                    if (config.enableAutoReload) {
-                                        scope.launch {
-                                            delay(30000L) // Wait 30 seconds before reloading
-                                            canLoadAgain = true
-                                            loadAd()
-                                        }
-                                    }
                                 }
 
                                 override fun onAdImpression() {
@@ -120,30 +98,13 @@ class AppOpenAd(
                         override fun onAdFailedToLoad(error: com.google.android.gms.ads.LoadAdError) {
                             _listener?.onAdFailedToLoad(error.message)
 
-                            retryAttempt++
-
-                            // Calculate exponential backoff with max limit
-                            val baseDelay = 15000L // 15 seconds base
-                            val maxDelay = 300000L // 5 minutes max
-                            val delayMillis = (baseDelay * Math.pow(2.0, (retryAttempt - 1).toDouble())).toLong()
-                            val finalDelay = delayMillis.coerceAtMost(maxDelay)
-
-                            Log.d("AppOpenAd", "Load failed. Retry #$retryAttempt in ${finalDelay/1000} seconds")
-
-                            // Schedule retry with backoff
-                            scope.launch {
-                                delay(finalDelay)
-                                canLoadAgain = true
-                                loadAd()
-                            }
-
+                            // Simple retry logic - just report failure
                             if (!continuation.isCancelled) continuation.resume(AdResult.Error(error.message))
                         }
                     }
                 )
             }
         } catch (e: Exception) {
-            canLoadAgain = true // Reset cooldown on exception
             AdResult.Error(e.message ?: "Unknown error")
         }
     }

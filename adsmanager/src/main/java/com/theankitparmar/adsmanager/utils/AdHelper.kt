@@ -2,6 +2,8 @@ package com.theankitparmar.adsmanager.utils
 
 import android.app.Activity
 import android.content.Context
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import android.view.View
 import android.view.ViewGroup
@@ -264,7 +266,8 @@ object AdHelper {
 
     // Inside AdHelper.kt
 
-    // Updated showAppOpenAd method in AdHelper.kt
+// In AdHelper.kt - Update the showAppOpenAd method
+
     fun showAppOpenAd(
         activity: Activity,
         showLoadingDialog: Boolean = true,
@@ -273,49 +276,70 @@ object AdHelper {
     ): Boolean {
         Log.d(TAG, "Attempting to show an App Open ad.")
 
-        // Reuse or create App Open Ad instance
-        val appOpenAd = reusableAppOpenAd ?: AdsManager.getAppOpenAd(activity).also {
-            reusableAppOpenAd = it
+        // Always get fresh instance to avoid state issues
+        val appOpenAd = AdsManager.getAppOpenAd(activity)
+
+        // Store for reuse, but don't destroy the old one yet
+        reusableAppOpenAd?.let { oldAd ->
+            // Don't destroy immediately, let GC handle it
+            oldAd.destroy()
         }
+        reusableAppOpenAd = appOpenAd
 
         if (showLoadingDialog) {
             showLoadingDialog(activity, "Loading...")
         }
 
-        // Clear previous listener to avoid conflicts
-        appOpenAd.setListener(null)
+        // Track if we're trying to load
+        var isLoadingInProgress = false
 
         appOpenAd.setListener(object : AdListener {
             override fun onAdLoading() {
                 Log.d(TAG, "App Open ad is loading...")
+                isLoadingInProgress = true
             }
 
             override fun onAdLoaded() {
                 Log.d(TAG, "App Open ad loaded successfully.")
                 dismissLoadingDialog()
-                // Show immediately when loaded
+                isLoadingInProgress = false
+
+                // Immediately show after loading
                 appOpenAd.showIfAvailable(activity)
             }
 
             override fun onAdDismissed() {
                 Log.d(TAG, "App Open ad was dismissed.")
-                appOpenAd.setListener(null) // Clear listener
+                appOpenAd.setListener(null)
                 dismissLoadingDialog()
                 onAdDismissed?.invoke()
+
+                // IMMEDIATELY preload for next time
+                Handler(Looper.getMainLooper()).postDelayed({
+                    preloadAppOpenAdForNextTime(activity)
+                }, 500) // Small delay to ensure cleanup
             }
 
             override fun onAdFailedToLoad(error: String) {
                 Log.e(TAG, "App Open ad failed to load. Error: $error")
-                appOpenAd.setListener(null) // Clear listener
+                appOpenAd.setListener(null)
                 dismissLoadingDialog()
                 onAdFailed?.invoke(error)
+
+                // Try again after a short delay
+                Handler(Looper.getMainLooper()).postDelayed({
+                    preloadAppOpenAdForNextTime(activity)
+                }, 5000) // 5 seconds before retry
             }
 
             override fun onAdFailedToShow(error: String) {
                 Log.e(TAG, "App Open ad failed to show. Error: $error")
-                appOpenAd.setListener(null) // Clear listener
+                appOpenAd.setListener(null)
                 dismissLoadingDialog()
                 onAdFailed?.invoke(error)
+
+                // Preload for next time
+                preloadAppOpenAdForNextTime(activity)
             }
 
             override fun onAdClicked() {
@@ -326,17 +350,54 @@ object AdHelper {
             override fun onAdRevenue(valueMicros: Long, currencyCode: String, precision: Int) {}
         })
 
-        // Check if ad is already available
+        // Check if ad is already loaded
         return if (appOpenAd.isLoaded()) {
             Log.d(TAG, "App Open ad already loaded, showing immediately.")
             dismissLoadingDialog()
             appOpenAd.showIfAvailable(activity)
             true
         } else {
+            Log.d(TAG, "App Open ad not loaded, starting load...")
             // Only load if not already loading
-            appOpenAd.loadAd()
+            if (!isLoadingInProgress) {
+                appOpenAd.loadAd()
+            }
             false
         }
+    }
+
+    // Add this method to AdHelper.kt - Preload without showing
+    private fun preloadAppOpenAdForNextTime(context: Context) {
+        Log.d(TAG, "Preloading App Open Ad for next foreground...")
+
+        // Clear old instance
+        reusableAppOpenAd?.let {
+            it.destroy()
+            reusableAppOpenAd = null
+        }
+
+        // Create and load new instance in background
+        try {
+            reusableAppOpenAd = AdsManager.getAppOpenAd(context)
+            reusableAppOpenAd?.loadAd()
+            Log.d(TAG, "App Open Ad preloaded successfully for next foreground")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to preload App Open Ad", e)
+        }
+    }
+
+
+    // Add this new method to AdHelper.kt for reloading
+    private fun reloadAppOpenAd(context: Context) {
+        Log.d(TAG, "Reloading App Open Ad...")
+
+        // Clear the existing instance
+        reusableAppOpenAd?.destroy()
+        reusableAppOpenAd = null
+
+        // Create and load new instance
+        reusableAppOpenAd = AdsManager.getAppOpenAd(context)
+        reusableAppOpenAd?.loadAd()
     }
 
     private fun showShimmerEffect(context: Context, container: ViewGroup) {
@@ -401,17 +462,20 @@ object AdHelper {
         bannerAds.values.forEach { it.resume() }
     }
 
+    // Update the destroyAds method to handle reusableAppOpenAd
     fun destroyAds() {
         Log.d(TAG, "Destroying all ads and clearing references.")
         bannerAds.values.forEach { it.destroy() }
         interstitialAds.values.forEach { it.destroy() }
         nativeAds.values.forEach { it.destroy() }
+        reusableAppOpenAd?.destroy() // Add this line
         bannerAds.clear()
         interstitialAds.clear()
         nativeAds.clear()
         shimmerDrawables.values.forEach { it.stopShimmer() }
         shimmerDrawables.clear()
         dismissLoadingDialog()
+        reusableAppOpenAd = null // Clear reference
     }
 
     private fun Int.dpToPx(context: Context): Int {
@@ -429,5 +493,25 @@ object AdHelper {
         } catch (e: Exception) {
             Log.e(TAG, "Failed to preload App Open Ad", e)
         }
+    }
+
+    // In AdHelper.kt - Add this method
+
+    fun reloadAppOpenAdForBackground(context: Context) {
+        Log.d(TAG, "Force reloading App Open Ad for background-to-foreground")
+
+        // Clear existing ad
+        reusableAppOpenAd?.destroy()
+        reusableAppOpenAd = null
+
+        // Preload new ad in background
+        Handler(Looper.getMainLooper()).postDelayed({
+            try {
+                reusableAppOpenAd = AdsManager.getAppOpenAd(context)
+                Log.d(TAG, "App Open Ad preloaded for next foreground")
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to preload App Open Ad", e)
+            }
+        }, 2000) // 2 second delay
     }
 }

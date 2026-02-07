@@ -7,7 +7,6 @@ import com.theankitparmar.adsmanager.core.AdsManager
 import com.theankitparmar.adsmanager.core.AdUnits
 import com.theankitparmar.adsmanager.adInterface.AdsConfiguration
 import com.theankitparmar.adsmanager.utils.AppOpenManager
-import kotlin.jvm.java
 
 class MainApplication : Application() {
 
@@ -56,11 +55,20 @@ class MainApplication : Application() {
      * Define which activities should NOT show App Open Ads
      */
     private fun excludeAppOpenAdActivities() {
-        // Exclude Splash Screen
-        AppOpenManager.excludeActivity(SplashActivity::class.java)
-        // Exclude any other sensitive screens
+        try {
+            // Exclude Splash Screen
+            AppOpenManager.excludeActivity(Class.forName("com.theankitparmar.adsmanager.testApp.SplashActivity"))
+//
+//            // Exclude Login Screen
+//            AppOpenManager.excludeActivity(Class.forName("com.theankitparmar.adsmanager.testApp.LoginActivity"))
+//
+//            // Exclude Payment Screen
+//            AppOpenManager.excludeActivity(Class.forName("com.theankitparmar.adsmanager.testApp.PaymentActivity"))
 
-        Log.d("MainApplication", "Excluded activities for App Open Ads")
+            Log.d("MainApplication", "Excluded activities for App Open Ads")
+        } catch (e: ClassNotFoundException) {
+            Log.w("MainApplication", "Some activity classes not found for exclusion")
+        }
     }
 
     override fun onTerminate() {
