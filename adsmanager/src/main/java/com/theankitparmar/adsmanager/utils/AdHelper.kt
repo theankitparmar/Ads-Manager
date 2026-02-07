@@ -417,4 +417,17 @@ object AdHelper {
     private fun Int.dpToPx(context: Context): Int {
         return (this * context.resources.displayMetrics.density).toInt()
     }
+
+    // Add this method to AdHelper.kt
+    fun preloadAppOpenAd(context: Context) {
+        try {
+            if (AdsManager.isInitialized()) {
+                // Get the app open ad (this will load it)
+                reusableAppOpenAd = AdsManager.getAppOpenAd(context)
+                Log.d(TAG, "App Open Ad preloaded")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to preload App Open Ad", e)
+        }
+    }
 }
