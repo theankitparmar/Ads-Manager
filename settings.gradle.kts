@@ -19,6 +19,6 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "My Application"
+rootProject.name = "AP AdManager SDK"
 include(":app")
 include(":adsmanager")
