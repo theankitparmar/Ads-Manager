@@ -25,6 +25,8 @@ object AdHelper {
     private val nativeAds = mutableMapOf<String, NativeAd>()
     private val shimmerDrawables = mutableMapOf<Int, ShimmerDrawable>()
     private var loadingDialog: AlertDialog? = null
+    // Reusable interstitial ad instance
+    private var reusableInterstitialAd: InterstitialAd? = null
 
     fun showBannerAd(
         context: Context,
@@ -56,6 +58,10 @@ object AdHelper {
         bannerAds[key] = bannerAd
 
         bannerAd.setListener(object : AdListener {
+            override fun onAdLoading() {
+                Log.d(TAG, "Banner ad is loading...")
+            }
+
             override fun onAdLoaded() {
                 Log.d(TAG, "Banner ad loaded successfully and is now visible.")
                 hideShimmerEffect(shimmerContainer)
@@ -102,6 +108,27 @@ object AdHelper {
         return bannerAd
     }
 
+    // Get or create a reusable interstitial ad
+    fun getReusableInterstitialAd(activity: Activity): InterstitialAd {
+        val key = "interstitial_reusable"
+
+        return if (interstitialAds.containsKey(key)) {
+            interstitialAds[key]!!
+        } else {
+            val interstitialAd = AdsManager.getInterstitialAd(activity)
+            interstitialAds[key] = interstitialAd
+            interstitialAd
+        }
+    }
+
+    // Clear the reusable interstitial ad
+    fun clearReusableInterstitialAd() {
+        val key = "interstitial_reusable"
+        interstitialAds.remove(key)?.destroy()
+        reusableInterstitialAd = null
+    }
+
+// AdHelper.kt
 
     fun showInterstitialAd(
         activity: Activity,
@@ -111,55 +138,75 @@ object AdHelper {
     ) {
         Log.d(TAG, "Attempting to show an Interstitial ad.")
 
+        val interstitialAd = getReusableInterstitialAd(activity)
+
+        // Check if ad is already loaded
+        if (interstitialAd.isLoaded()) {
+            Log.d(TAG, "Interstitial ad was already cached, showing immediately.")
+
+            // Before showing, set a listener just to handle the DISMISSAL
+            interstitialAd.setListener(object : AdListener {
+                override fun onAdDismissed() {
+                    interstitialAd.setListener(null) // IMPORTANT: Clear listener so reloads don't trigger this
+                    onAdDismissed?.invoke()
+                }
+                override fun onAdFailedToShow(error: String) {
+                    interstitialAd.setListener(null)
+                    onAdFailed?.invoke(error)
+                }
+                // ... implement other empty methods or use a BaseListener
+                override fun onAdLoading() {}
+                override fun onAdLoaded() {}
+                override fun onAdFailedToLoad(error: String) {}
+                override fun onAdClicked() {}
+                override fun onAdImpression() {}
+                override fun onAdRevenue(valueMicros: Long, currencyCode: String, precision: Int) {}
+            })
+
+            interstitialAd.showAd(activity)
+            return // Exit here, we've handled the show
+        }
+
+        // If NOT loaded, we load it and show it ONCE when finished
         if (showLoadingDialog) {
             showLoadingDialog(activity, "Loading ad...")
         }
 
-        val interstitialAd = AdsManager.getInterstitialAd(activity)
-        val key = "interstitial_${activity.localClassName}"
-        interstitialAds[key] = interstitialAd
-
         interstitialAd.setListener(object : AdListener {
             override fun onAdLoaded() {
-                Log.d(TAG, "Interstitial ad loaded successfully.")
+                Log.d(TAG, "Interstitial ad loaded, showing now.")
                 dismissLoadingDialog()
-                if (interstitialAd.isLoaded()) {
-                    Log.d(TAG, "Displaying the Interstitial ad now.")
-                    interstitialAd.showAd(activity)
-                }
+                interstitialAd.showAd(activity)
+                // Note: We DON'T clear the listener here yet because we need
+                // to hear the onAdDismissed event below.
             }
 
             override fun onAdDismissed() {
-                Log.d(TAG, "Interstitial ad was closed by the user.")
+                Log.d(TAG, "Interstitial ad was closed.")
+                interstitialAd.setListener(null) // <--- CRITICAL FIX: Stop listening after dismissal
                 dismissLoadingDialog()
                 onAdDismissed?.invoke()
             }
 
             override fun onAdFailedToLoad(error: String) {
-                Log.e(TAG, "Interstitial ad failed to load. Error: $error")
+                interstitialAd.setListener(null) // <--- CRITICAL FIX: Stop listening if load fails
                 dismissLoadingDialog()
                 onAdFailed?.invoke(error)
-            }
-
-            override fun onAdClicked() {
-                Log.d(TAG, "The user clicked on the Interstitial ad.")
             }
 
             override fun onAdFailedToShow(error: String) {
-                Log.e(TAG, "Interstitial ad failed to show. Error: $error")
+                interstitialAd.setListener(null) // <--- CRITICAL FIX
                 dismissLoadingDialog()
                 onAdFailed?.invoke(error)
             }
 
+            override fun onAdLoading() {}
+            override fun onAdClicked() {}
             override fun onAdImpression() {}
             override fun onAdRevenue(valueMicros: Long, currencyCode: String, precision: Int) {}
         })
 
-        if (interstitialAd.isLoaded()) {
-            Log.d(TAG, "Interstitial ad was already cached, showing immediately.")
-            dismissLoadingDialog()
-            interstitialAd.showAd(activity)
-        }
+        interstitialAd.loadAd()
     }
 
     fun showNativeAd(
@@ -181,6 +228,10 @@ object AdHelper {
         nativeAds[key] = nativeAd
 
         nativeAd.setListener(object : AdListener {
+            override fun onAdLoading() {
+                Log.d(TAG, "Native ad is loading...")
+            }
+
             override fun onAdLoaded() {
                 Log.d(TAG, "Native ad loaded successfully.")
                 hideShimmerEffect(container)
@@ -223,6 +274,10 @@ object AdHelper {
         val appOpenAd = AdsManager.getAppOpenAd(activity)
 
         appOpenAd.setListener(object : AdListener {
+            override fun onAdLoading() {
+                Log.d(TAG, "App Open ad is loading...")
+            }
+
             override fun onAdLoaded() {
                 Log.d(TAG, "App Open ad loaded successfully.")
                 dismissLoadingDialog()

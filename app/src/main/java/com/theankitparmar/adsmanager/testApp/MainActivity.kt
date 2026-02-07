@@ -1,30 +1,29 @@
+// MainActivity.kt
 package com.theankitparmar.adsmanager.testApp
 
 import android.os.Bundle
 import android.util.Log
-import android.view.ViewGroup
-import android.widget.Button
-import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
-import androidx.lifecycle.lifecycleScope
+import com.google.android.gms.ads.AdSize
+import com.theankitparmar.adsmanager.BuildConfig
 import com.theankitparmar.adsmanager.core.AdsManager
-import com.theankitparmar.adsmanager.ads.BannerAd
-import com.theankitparmar.adsmanager.ads.InterstitialAd
-import com.theankitparmar.adsmanager.ads.NativeAd
-import com.theankitparmar.adsmanager.callbacks.AdLoadCallback
-import com.theankitparmar.adsmanager.utils.AdLifecycleObserver
+import com.theankitparmar.adsmanager.utils.AdHelper
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import java.text.NumberFormat
+import java.util.*
 
 class MainActivity : AppCompatActivity() {
 
-    private lateinit var bannerAd: BannerAd
-    private lateinit var interstitialAd: InterstitialAd
-    private lateinit var nativeAd: NativeAd
-    private lateinit var tvAdStatus: TextView
+    private val scope = CoroutineScope(Dispatchers.Main)
+    private var isAppOpenShown = false
+    private var totalRevenue: Long = 0
+    private var isLoadingAds = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -37,128 +36,230 @@ class MainActivity : AppCompatActivity() {
             insets
         }
 
-        tvAdStatus = findViewById(R.id.tv_ad_status)
+        setupUI()
+        setupReloadButtons()
 
-        // Initialize Banner Ad
-        val bannerContainer = findViewById<ViewGroup>(R.id.banner_container)
-        bannerAd = AdsManager.createBannerAd(this)
-        bannerAd.setAdLoadCallback(object : AdLoadCallback {
-            override fun onAdLoaded() {
-                updateStatus("Banner ad loaded successfully")
-            }
+        // Initialize ads after a short delay to ensure AdsManager is ready
+        initializeAds()
+    }
 
-            override fun onAdFailedToLoad(error: String) {
-                updateStatus("Banner failed: $error")
-            }
+    private fun initializeAds() {
+        if (isLoadingAds) return
+        isLoadingAds = true
 
-            override fun onAdImpression() {
-                updateStatus("Banner impression recorded")
-            }
+        scope.launch {
+            try {
+                updateStatus("Initializing ads...")
 
-            override fun onAdClicked() {
-                updateStatus("Banner clicked")
-            }
-        })
-        bannerAd.loadAndShow(bannerContainer)
+                // Wait for AdsManager to be initialized
+                AdsManager.awaitInitialization()
 
-        // Add lifecycle observer
-        lifecycle.addObserver(AdLifecycleObserver(bannerAd))
+                // Now that AdsManager is initialized, load all ads
+                loadAllAds()
 
-        // Initialize Interstitial Ad
-        interstitialAd = AdsManager.createInterstitialAd(this)
-
-        // Set callbacks
-        interstitialAd.setAdLoadCallback(object : AdLoadCallback {
-            override fun onAdLoaded() {
-                Log.d("AdsManager", "Interstitial loaded")
-                updateStatus("Interstitial ad loaded")
-                findViewById<Button>(R.id.show_interstitial).apply {
-                    text = "Show Interstitial Ad"
-                    isEnabled = true
+                // Show App Open Ad on first launch
+                if (!isAppOpenShown) {
+                    showAppOpenAd()
                 }
-            }
 
-            override fun onAdFailedToLoad(error: String) {
-                Log.e("AdsManager", "Interstitial failed: $error")
-                updateStatus("Interstitial failed: $error")
-            }
-
-            override fun onAdImpression() {
-                Log.d("AdsManager", "Interstitial impression")
-                updateStatus("Interstitial impression")
-            }
-
-            override fun onAdClicked() {
-                Log.d("AdsManager", "Interstitial clicked")
-                updateStatus("Interstitial clicked")
-            }
-        })
-
-        // Show interstitial on button click
-        findViewById<Button>(R.id.show_interstitial).setOnClickListener {
-            if (interstitialAd.showIfLoaded()) {
-                // Ad shown
-                updateStatus("Interstitial ad shown")
-            } else {
-                // Ad not ready yet
-                Toast.makeText(this, "Ad loading, please wait", Toast.LENGTH_SHORT).show()
-                updateStatus("Interstitial not ready, loading...")
-                interstitialAd.load()
+            } catch (e: Exception) {
+                updateStatus("Failed to initialize ads: ${e.message}")
+                Toast.makeText(this@MainActivity, "Ad initialization failed: ${e.message}", Toast.LENGTH_LONG).show()
+                Log.e("MainActivity", "Ad initialization error", e)
+            } finally {
+                isLoadingAds = false
             }
         }
+    }
 
-        // Initialize Native Ad
-        val nativeContainer = findViewById<ViewGroup>(R.id.native_container)
-        nativeAd = AdsManager.createNativeAd(this)
-        nativeAd.setAdLoadCallback(object : AdLoadCallback {
-            override fun onAdLoaded() {
-                updateStatus("Native ad loaded")
-                // Inflate the native ad view when loaded
-                lifecycleScope.launch {
-                    nativeAd.inflateNativeAdView(nativeContainer)
-                }
-            }
+    private fun setupUI() {
+        // Update status text
+        val statusText = findViewById<android.widget.TextView>(R.id.tv_ad_status)
+        statusText.text = "Initializing Ads Manager... Test Mode: ${BuildConfig.DEBUG}"
+    }
 
-            override fun onAdFailedToLoad(error: String) {
-                updateStatus("Native failed: $error")
-            }
+    private fun loadAllAds() {
+        updateStatus("Loading ads...")
 
-            override fun onAdImpression() {
-                updateStatus("Native impression")
-            }
-
-            override fun onAdClicked() {
-                updateStatus("Native clicked")
-            }
-        })
-        nativeAd.load()
-
-        // Setup reload buttons
-        findViewById<Button>(R.id.btn_reload_banner).setOnClickListener {
-            updateStatus("Reloading banner ad...")
-            bannerAd.load()
+        if (!AdsManager.isInitialized()) {
+            updateStatus("AdsManager not initialized yet")
+            return
         }
 
-        findViewById<Button>(R.id.btn_reload_native).setOnClickListener {
-            updateStatus("Reloading native ad...")
-            nativeAd.load()
+        loadBannerAd()
+        loadNativeAd()
+        setupInterstitialButton()
+
+        updateStatus("Ads Manager initialized successfully")
+    }
+
+    private fun loadBannerAd() {
+        val bannerContainer = findViewById<android.widget.LinearLayout>(R.id.banner_container)
+
+        try {
+            AdHelper.showBannerAd(
+                context = this,
+                container = bannerContainer,
+                showShimmer = true,
+                adSize = AdSize.BANNER,
+                onAdLoaded = {
+                    runOnUiThread {
+                        Toast.makeText(this, "Banner ad loaded successfully", Toast.LENGTH_SHORT).show()
+                        updateStatus("Banner ad loaded")
+                    }
+                },
+                onAdFailed = { error ->
+                    runOnUiThread {
+                        Toast.makeText(this, "Banner ad failed: $error", Toast.LENGTH_SHORT).show()
+                        updateStatus("Banner ad failed: $error")
+                    }
+                }
+            )
+        } catch (e: Exception) {
+            updateStatus("Banner ad error: ${e.message}")
+            Log.e("MainActivity", "Banner ad error", e)
+        }
+    }
+
+    private fun loadNativeAd() {
+        val nativeContainer = findViewById<android.widget.LinearLayout>(R.id.native_container)
+
+        try {
+            AdHelper.showNativeAd(
+                context = this,
+                container = nativeContainer,
+                layoutResId = R.layout.native_ad_layout,
+                showShimmer = true,
+                onAdLoaded = {
+                    runOnUiThread {
+                        Toast.makeText(this, "Native ad loaded successfully", Toast.LENGTH_SHORT).show()
+                        updateStatus("Native ad loaded")
+                    }
+                },
+                onAdFailed = { error ->
+                    runOnUiThread {
+                        Toast.makeText(this, "Native ad failed: $error", Toast.LENGTH_SHORT).show()
+                        updateStatus("Native ad failed: $error")
+
+                        // Show a fallback message
+                        val textView = android.widget.TextView(this).apply {
+                            text = "Native ad failed to load. Error: $error"
+                            setTextColor(android.graphics.Color.RED)
+                            gravity = android.view.Gravity.CENTER
+                            setPadding(16, 16, 16, 16)
+                        }
+                        nativeContainer.removeAllViews()
+                        nativeContainer.addView(textView)
+                    }
+                }
+            )
+        } catch (e: Exception) {
+            updateStatus("Native ad error: ${e.message}")
+            Log.e("MainActivity", "Native ad error", e)
+        }
+    }
+
+    private fun setupInterstitialButton() {
+        val interstitialButton = findViewById<android.widget.Button>(R.id.show_interstitial)
+
+        interstitialButton.setOnClickListener {
+            try {
+                AdHelper.showInterstitialAd(
+                    activity = this,
+                    showLoadingDialog = false,
+                    onAdDismissed = {
+                        runOnUiThread {
+                            Toast.makeText(this, "Interstitial ad dismissed", Toast.LENGTH_SHORT).show()
+                            updateStatus("Interstitial dismissed")
+                        }
+                    },
+                    onAdFailed = { error ->
+                        runOnUiThread {
+                            Toast.makeText(this, "Interstitial failed: $error", Toast.LENGTH_SHORT).show()
+                            updateStatus("Interstitial failed: $error")
+                        }
+                    }
+                )
+            } catch (e: Exception) {
+                Toast.makeText(this, "Error showing interstitial: ${e.message}", Toast.LENGTH_SHORT).show()
+                updateStatus("Interstitial error: ${e.message}")
+            }
+        }
+    }
+
+    private fun setupReloadButtons() {
+        val reloadBannerButton = findViewById<android.widget.Button>(R.id.btn_reload_banner)
+        val reloadNativeButton = findViewById<android.widget.Button>(R.id.btn_reload_native)
+
+        reloadBannerButton.setOnClickListener {
+            val bannerContainer = findViewById<android.widget.LinearLayout>(R.id.banner_container)
+            bannerContainer.removeAllViews()
+            loadBannerAd()
+            Toast.makeText(this, "Reloading banner ad...", Toast.LENGTH_SHORT).show()
+        }
+
+        reloadNativeButton.setOnClickListener {
+            val nativeContainer = findViewById<android.widget.LinearLayout>(R.id.native_container)
             nativeContainer.removeAllViews()
+            loadNativeAd()
+            Toast.makeText(this, "Reloading native ad...", Toast.LENGTH_SHORT).show()
         }
+    }
 
-        updateStatus("Ads Manager initialized. Loading ads...")
+    private fun showAppOpenAd() {
+        try {
+            val wasShown = AdHelper.showAppOpenAd(
+                activity = this,
+                showLoadingDialog = false,
+                onAdDismissed = {
+                    runOnUiThread {
+                        Toast.makeText(this, "App Open ad dismissed", Toast.LENGTH_SHORT).show()
+                        updateStatus("App Open dismissed")
+                        isAppOpenShown = true
+                    }
+                },
+                onAdFailed = { error ->
+                    runOnUiThread {
+                        Toast.makeText(this, "App Open failed: $error", Toast.LENGTH_SHORT).show()
+                        updateStatus("App Open failed: $error")
+                    }
+                }
+            )
+
+            if (!wasShown) {
+                Log.d("MainActivity", "App Open ad not ready, loading in background")
+            }
+        } catch (e: Exception) {
+            Log.e("MainActivity", "App Open ad error", e)
+        }
     }
 
     private fun updateStatus(message: String) {
         runOnUiThread {
-            tvAdStatus.text = "Status: $message"
-            Log.d("AdsManager", message)
+            val statusText = findViewById<android.widget.TextView>(R.id.tv_ad_status)
+            statusText.text = "Status: $message"
         }
+    }
+
+    private fun formatRevenue(valueMicros: Long): String {
+        val valueInDollars = valueMicros / 1_000_000.0
+        val formatter = NumberFormat.getCurrencyInstance(Locale.US)
+        formatter.maximumFractionDigits = 6
+        return formatter.format(valueInDollars)
+    }
+
+    override fun onPause() {
+        super.onPause()
+        AdHelper.pauseBannerAds()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        AdHelper.resumeBannerAds()
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        bannerAd.destroy()
-        interstitialAd.destroy()
-        nativeAd.destroy()
+        AdHelper.destroyAds()
     }
 }

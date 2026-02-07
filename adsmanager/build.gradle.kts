@@ -1,15 +1,14 @@
 plugins {
-    id("com.android.library")  // NOT application
+    id("com.android.library")
     id("org.jetbrains.kotlin.android")
 }
 
 android {
     namespace = "com.theankitparmar.adsmanager"
-    compileSdk = 34
+    compileSdk = 36
 
     defaultConfig {
         minSdk = 24
-        // NO applicationId here (library modules don't have applicationId)
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles("consumer-rules.pro")
     }
@@ -38,7 +37,6 @@ android {
     }
 }
 
-
 dependencies {
     implementation("androidx.core:core-ktx:1.12.0")
     implementation("androidx.appcompat:appcompat:1.6.1")
@@ -51,8 +49,6 @@ dependencies {
     implementation("com.google.android.gms:play-services-ads:23.3.0")
     implementation("com.facebook.shimmer:shimmer:0.5.0")
 
-
-    // For coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.0")
 }

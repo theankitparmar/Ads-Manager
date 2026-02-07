@@ -1,3 +1,4 @@
+// NativeAd.kt
 package com.theankitparmar.adsmanager.ads.native
 
 import android.app.Activity
@@ -18,18 +19,25 @@ import com.google.android.gms.ads.nativead.NativeAd
 import com.google.android.gms.ads.nativead.NativeAdOptions
 import com.google.android.gms.ads.nativead.NativeAdView
 import com.theankitparmar.adsmanager.R
-import com.theankitparmar.adsmanager.adInterface.AdsConfiguration
+import com.theankitparmar.adsmanager.adInterface.*
 import com.theankitparmar.adsmanager.ads.AdState
 import com.theankitparmar.adsmanager.ads.BaseAd
 import com.theankitparmar.adsmanager.callbacks.AdResult
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
+import kotlin.coroutines.resume
 
 class NativeAd(
     context: Context,
     adUnitId: String,
     config: AdsConfiguration
-) : BaseAd<AdState>(context, adUnitId, config) {
+) : BaseAd<AdState>(
+    context = context,
+    adUnitId = adUnitId,
+    config = config,
+    adType = AdType.NATIVE
+) {
 
     private var nativeAd: NativeAd? = null
     private var adLoader: AdLoader? = null
@@ -40,44 +48,66 @@ class NativeAd(
         return@withContext try {
             val context = getContext() ?: return@withContext AdResult.Error("Context is null")
 
-            adLoader = AdLoader.Builder(context, getAdUnitId())
-                .forNativeAd { ad ->
-                    nativeAd?.destroy()
-                    nativeAd = ad
-                    _listener?.onAdLoaded()
+            val result = suspendCancellableCoroutine<AdResult<Unit>> { continuation ->
+                adLoader = AdLoader.Builder(context, getAdUnitId())
+                    .forNativeAd { ad ->
+                        nativeAd?.destroy()
+                        nativeAd = ad
 
-                    ad.setOnPaidEventListener { adValue ->
-                        _listener?.onAdRevenue(
-                            adValue.valueMicros,
-                            adValue.currencyCode,
-                            adValue.precisionType
-                        )
-                    }
-                }
-                .withAdListener(object : AdListener() {
-                    override fun onAdFailedToLoad(error: LoadAdError) {
-                        _listener?.onAdFailedToLoad(error.message)
-                    }
-                    override fun onAdClicked() { _listener?.onAdClicked() }
-                    override fun onAdImpression() { _listener?.onAdImpression() }
-                })
-                .withNativeAdOptions(
-                    NativeAdOptions.Builder()
-                    .setVideoOptions(VideoOptions.Builder().setStartMuted(true).build())
-                    .build())
-                .build()
+                        ad.setOnPaidEventListener { adValue ->
+                            _listener?.onAdRevenue(adValue)
+                            emitEvent(AdEvent.Revenue(
+                                AdType.NATIVE,
+                                adValue.valueMicros,
+                                adValue.currencyCode,
+                                adValue.precisionType,
+                                getAdId()
+                            ))
+                        }
 
-            adLoader?.loadAd(AdRequest.Builder().build())
-            AdResult.Success(Unit)
+                        if (!continuation.isCancelled) {
+                            continuation.resume(AdResult.Success(Unit))
+                        }
+                    }
+                    .withAdListener(object : AdListener() {
+                        override fun onAdFailedToLoad(error: com.google.android.gms.ads.LoadAdError) {
+                            _listener?.onAdFailedToLoad(error.message)
+                            emitEvent(AdEvent.Failed(
+                                AdType.NATIVE,
+                                CustomAdError.fromLoadAdError(error),
+                                getAdId()
+                            ))
+
+                            if (!continuation.isCancelled) {
+                                continuation.resume(AdResult.Error(error.message))
+                            }
+                        }
+
+                        override fun onAdClicked() {
+                            _listener?.onAdClicked()
+                            emitEvent(AdEvent.Clicked(AdType.NATIVE, getAdId()))
+                        }
+
+                        override fun onAdImpression() {
+                            _listener?.onAdImpression()
+                            emitEvent(AdEvent.Impression(AdType.NATIVE, getAdId()))
+                        }
+                    })
+                    .withNativeAdOptions(
+                        NativeAdOptions.Builder()
+                            .setVideoOptions(VideoOptions.Builder().setStartMuted(true).build())
+                            .build())
+                    .build()
+
+                adLoader?.loadAd(AdRequest.Builder().build())
+            }
+
+            result
         } catch (e: Exception) {
             AdResult.Error(e.message ?: "Unknown error")
         }
     }
 
-    /**
-     * Inflates the native ad into the provided container.
-     * Ensure your layout uses standard IDs like R.id.ad_headline, R.id.ad_body, etc.
-     */
     fun inflateNativeAdView(
         container: ViewGroup,
         layoutResId: Int
@@ -88,10 +118,8 @@ class NativeAd(
         val adView = LayoutInflater.from(context)
             .inflate(layoutResId, container, false) as? NativeAdView ?: return null
 
-        // 1. Map and Populate the views
         populateNativeAdView(ad, adView)
 
-        // 2. Update UI Container
         container.removeAllViews()
         container.addView(adView)
 
@@ -99,10 +127,7 @@ class NativeAd(
     }
 
     private fun populateNativeAdView(nativeAd: NativeAd, adView: NativeAdView) {
-        // Set the media view.
         adView.mediaView = adView.findViewById(R.id.ad_media)
-
-        // Set other ad assets.
         adView.headlineView = adView.findViewById(R.id.ad_headline)
         adView.bodyView = adView.findViewById(R.id.ad_body)
         adView.callToActionView = adView.findViewById(R.id.ad_call_to_action)
@@ -110,12 +135,9 @@ class NativeAd(
         adView.starRatingView = adView.findViewById(R.id.ad_stars)
         adView.advertiserView = adView.findViewById(R.id.ad_advertiser)
 
-        // The headline and media content are guaranteed to be in every UnifiedNativeAd.
         (adView.headlineView as? TextView)?.text = nativeAd.headline
         adView.mediaView?.setMediaContent(nativeAd.mediaContent!!)
 
-        // These assets aren't guaranteed to be in every UnifiedNativeAd, so it's important to
-        // check before displaying them.
         if (nativeAd.body == null) {
             adView.bodyView?.visibility = View.INVISIBLE
         } else {
@@ -151,8 +173,6 @@ class NativeAd(
             adView.advertiserView?.visibility = View.VISIBLE
         }
 
-        // This method tells the Google Mobile Ads SDK that you have finished populating your
-        // native ad view with this native ad.
         adView.setNativeAd(nativeAd)
     }
 

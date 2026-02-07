@@ -1,20 +1,26 @@
-// AppOpenAd.kt
 package com.theankitparmar.adsmanager.ads.open
 
 import android.app.Activity
 import android.content.Context
-import com.theankitparmar.adsmanager.adInterface.AdsConfiguration
+import com.theankitparmar.adsmanager.adInterface.*
 import com.theankitparmar.adsmanager.ads.AdState
 import com.theankitparmar.adsmanager.ads.BaseAd
 import com.theankitparmar.adsmanager.callbacks.AdResult
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
+import kotlin.coroutines.resume
 
 class AppOpenAd(
     context: Context,
     adUnitId: String,
     config: AdsConfiguration
-) : BaseAd<AdState>(context, adUnitId, config) {
+) : BaseAd<AdState>(
+    context = context,
+    adUnitId = adUnitId,
+    config = config,
+    adType = AdType.APP_OPEN
+) {
 
     private var appOpenAd: com.google.android.gms.ads.appopen.AppOpenAd? = null
     private var loadTime: Long = 0
@@ -27,57 +33,87 @@ class AppOpenAd(
 
             val adRequest = com.google.android.gms.ads.AdRequest.Builder().build()
 
-            com.google.android.gms.ads.appopen.AppOpenAd.load(
-                context,
-                getAdUnitId(),
-                adRequest,
-                com.google.android.gms.ads.appopen.AppOpenAd.APP_OPEN_AD_ORIENTATION_PORTRAIT,
-                object : com.google.android.gms.ads.appopen.AppOpenAd.AppOpenAdLoadCallback() {
-                    override fun onAdLoaded(ad: com.google.android.gms.ads.appopen.AppOpenAd) {
-                        appOpenAd = ad
-                        loadTime = System.currentTimeMillis()
+            val result = suspendCancellableCoroutine<AdResult<Unit>> { continuation ->
+                com.google.android.gms.ads.appopen.AppOpenAd.load(
+                    context,
+                    getAdUnitId(),
+                    adRequest,
+                    com.google.android.gms.ads.appopen.AppOpenAd.APP_OPEN_AD_ORIENTATION_PORTRAIT,
+                    object : com.google.android.gms.ads.appopen.AppOpenAd.AppOpenAdLoadCallback() {
+                        override fun onAdLoaded(ad: com.google.android.gms.ads.appopen.AppOpenAd) {
+                            appOpenAd = ad
+                            loadTime = System.currentTimeMillis()
 
-                        ad.fullScreenContentCallback = object : com.google.android.gms.ads.FullScreenContentCallback() {
-                            override fun onAdDismissedFullScreenContent() {
-                                appOpenAd = null
-                                _listener?.onAdDismissed()
-                                if (config.enableAutoReload) {
+                            ad.fullScreenContentCallback = object : com.google.android.gms.ads.FullScreenContentCallback() {
+                                override fun onAdDismissedFullScreenContent() {
+                                    appOpenAd = null
+                                    _listener?.onAdDismissed()
+                                    emitEvent(AdEvent.Dismissed(AdType.APP_OPEN, getAdId()))
+                                    if (config.enableAutoReload) {
+                                        loadAd()
+                                    }
+                                }
+
+                                override fun onAdFailedToShowFullScreenContent(error: com.google.android.gms.ads.AdError) {
+                                    appOpenAd = null
+                                    _listener?.onAdFailedToShow(error.message)
+                                    emitEvent(AdEvent.Failed(
+                                        AdType.APP_OPEN,
+                                        CustomAdError.fromAdError(error),
+                                        getAdId()
+                                    ))
                                     loadAd()
+                                }
+
+                                override fun onAdImpression() {
+                                    _listener?.onAdImpression()
+                                    emitEvent(AdEvent.Impression(AdType.APP_OPEN, getAdId()))
+                                }
+
+                                override fun onAdShowedFullScreenContent() {
+                                    emitEvent(AdEvent.Opened(AdType.APP_OPEN, getAdId()))
+                                }
+
+                                override fun onAdClicked() {
+                                    _listener?.onAdClicked()
+                                    emitEvent(AdEvent.Clicked(AdType.APP_OPEN, getAdId()))
                                 }
                             }
 
-                            override fun onAdFailedToShowFullScreenContent(error: com.google.android.gms.ads.AdError) {
-                                appOpenAd = null
-                                _listener?.onAdFailedToShow(error.message)
-                                loadAd()
+                            // Set revenue callback
+                            ad.setOnPaidEventListener { adValue ->
+                                _listener?.onAdRevenue(adValue)
+                                emitEvent(AdEvent.Revenue(
+                                    AdType.APP_OPEN,
+                                    adValue.valueMicros,
+                                    adValue.currencyCode,
+                                    adValue.precisionType,
+                                    getAdId()
+                                ))
                             }
 
-                            override fun onAdImpression() {
-                                _listener?.onAdImpression()
-                            }
-
-                            override fun onAdClicked() {
-                                _listener?.onAdClicked()
+                            if (!continuation.isCancelled) {
+                                continuation.resume(AdResult.Success(Unit))
                             }
                         }
 
-                        // Set revenue callback
-                        ad.setOnPaidEventListener { adValue ->
-                            _listener?.onAdRevenue(
-                                adValue.valueMicros,
-                                adValue.currencyCode,
-                                adValue.precisionType
-                            )
+                        override fun onAdFailedToLoad(error: com.google.android.gms.ads.LoadAdError) {
+                            _listener?.onAdFailedToLoad(error.message)
+                            emitEvent(AdEvent.Failed(
+                                AdType.APP_OPEN,
+                                CustomAdError.fromLoadAdError(error),
+                                getAdId()
+                            ))
+
+                            if (!continuation.isCancelled) {
+                                continuation.resume(AdResult.Error(error.message))
+                            }
                         }
                     }
+                )
+            }
 
-                    override fun onAdFailedToLoad(error: com.google.android.gms.ads.LoadAdError) {
-                        throw Exception(error.message)
-                    }
-                }
-            )
-
-            AdResult.Loading
+            result
         } catch (e: Exception) {
             AdResult.Error(e.message ?: "Unknown error")
         }
@@ -88,6 +124,11 @@ class AppOpenAd(
             appOpenAd?.show(activity)
         } else {
             _listener?.onAdFailedToShow("Ad not ready or activity invalid")
+            emitEvent(AdEvent.Failed(
+                AdType.APP_OPEN,
+                CustomAdError.ShowError(1, "Ad not ready or activity invalid"),
+                getAdId()
+            ))
             loadAd()
         }
     }

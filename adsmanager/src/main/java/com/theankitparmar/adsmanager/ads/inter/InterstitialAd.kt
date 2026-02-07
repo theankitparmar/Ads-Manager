@@ -3,18 +3,25 @@ package com.theankitparmar.adsmanager.ads.inter
 
 import android.app.Activity
 import android.content.Context
-import com.theankitparmar.adsmanager.adInterface.AdsConfiguration
+import com.theankitparmar.adsmanager.adInterface.*
 import com.theankitparmar.adsmanager.ads.AdState
 import com.theankitparmar.adsmanager.ads.BaseAd
 import com.theankitparmar.adsmanager.callbacks.AdResult
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
+import kotlin.coroutines.resume
 
 class InterstitialAd(
     context: Context,
     adUnitId: String,
     config: AdsConfiguration
-) : BaseAd<AdState>(context, adUnitId, config) {
+) : BaseAd<AdState>(
+    context = context,
+    adUnitId = adUnitId,
+    config = config,
+    adType = AdType.INTERSTITIAL
+) {
 
     private var interstitialAd: com.google.android.gms.ads.interstitial.InterstitialAd? = null
 
@@ -26,55 +33,88 @@ class InterstitialAd(
 
             val adRequest = com.google.android.gms.ads.AdRequest.Builder().build()
 
-            com.google.android.gms.ads.interstitial.InterstitialAd.load(
-                context,
-                getAdUnitId(),
-                adRequest,
-                object : com.google.android.gms.ads.interstitial.InterstitialAdLoadCallback() {
-                    override fun onAdLoaded(ad: com.google.android.gms.ads.interstitial.InterstitialAd) {
-                        interstitialAd = ad
+            val result = suspendCancellableCoroutine<AdResult<Unit>> { continuation ->
+                com.google.android.gms.ads.interstitial.InterstitialAd.load(
+                    context,
+                    getAdUnitId(),
+                    adRequest,
+                    object : com.google.android.gms.ads.interstitial.InterstitialAdLoadCallback() {
+                        override fun onAdLoaded(ad: com.google.android.gms.ads.interstitial.InterstitialAd) {
+                            interstitialAd = ad
 
-                        ad.fullScreenContentCallback = object : com.google.android.gms.ads.FullScreenContentCallback() {
-                            override fun onAdDismissedFullScreenContent() {
-                                interstitialAd = null
-                                _listener?.onAdDismissed()
-                                if (config.enableAutoReload) {
+                            ad.fullScreenContentCallback = object : com.google.android.gms.ads.FullScreenContentCallback() {
+                                // Inside InterstitialAd.kt
+                                override fun onAdDismissedFullScreenContent() {
+                                    interstitialAd = null
+                                    _listener?.onAdDismissed()
+                                    emitEvent(AdEvent.Dismissed(AdType.INTERSTITIAL, getAdId()))
+
+                                    if (config.enableAutoReload) {
+                                        // Only load if we aren't already loading
+                                        loadAd()
+                                    }
+                                }
+
+                                override fun onAdFailedToShowFullScreenContent(error: com.google.android.gms.ads.AdError) {
+                                    interstitialAd = null
+                                    _listener?.onAdFailedToShow(error.message)
+                                    emitEvent(AdEvent.Failed(
+                                        AdType.INTERSTITIAL,
+                                        CustomAdError.fromAdError(error),
+                                        getAdId()
+                                    ))
                                     loadAd()
+                                }
+
+                                override fun onAdImpression() {
+                                    _listener?.onAdImpression()
+                                    emitEvent(AdEvent.Impression(AdType.INTERSTITIAL, getAdId()))
+                                }
+
+                                override fun onAdShowedFullScreenContent() {
+                                    emitEvent(AdEvent.Opened(AdType.INTERSTITIAL, getAdId()))
+                                }
+
+                                override fun onAdClicked() {
+                                    _listener?.onAdClicked()
+                                    emitEvent(AdEvent.Clicked(AdType.INTERSTITIAL, getAdId()))
                                 }
                             }
 
-                            override fun onAdFailedToShowFullScreenContent(error: com.google.android.gms.ads.AdError) {
-                                interstitialAd = null
-                                _listener?.onAdFailedToShow(error.message)
-                                loadAd()
+                            // Set revenue callback
+                            ad.setOnPaidEventListener { adValue ->
+                                _listener?.onAdRevenue(adValue)
+                                emitEvent(AdEvent.Revenue(
+                                    AdType.INTERSTITIAL,
+                                    adValue.valueMicros,
+                                    adValue.currencyCode,
+                                    adValue.precisionType,
+                                    getAdId()
+                                ))
                             }
 
-                            override fun onAdImpression() {
-                                _listener?.onAdImpression()
-                            }
-
-                            override fun onAdClicked() {
-                                _listener?.onAdClicked()
+                            if (!continuation.isCancelled) {
+                                continuation.resume(AdResult.Success(Unit))
                             }
                         }
 
-                        // Set revenue callback
-                        ad.setOnPaidEventListener { adValue ->
-                            _listener?.onAdRevenue(
-                                adValue.valueMicros,
-                                adValue.currencyCode,
-                                adValue.precisionType
-                            )
+                        override fun onAdFailedToLoad(error: com.google.android.gms.ads.LoadAdError) {
+                            _listener?.onAdFailedToLoad(error.message)
+                            emitEvent(AdEvent.Failed(
+                                AdType.INTERSTITIAL,
+                                CustomAdError.fromLoadAdError(error),
+                                getAdId()
+                            ))
+
+                            if (!continuation.isCancelled) {
+                                continuation.resume(AdResult.Error(error.message))
+                            }
                         }
                     }
+                )
+            }
 
-                    override fun onAdFailedToLoad(error: com.google.android.gms.ads.LoadAdError) {
-                        throw Exception(error.message)
-                    }
-                }
-            )
-
-            AdResult.Loading
+            result
         } catch (e: Exception) {
             AdResult.Error(e.message ?: "Unknown error")
         }
@@ -85,6 +125,11 @@ class InterstitialAd(
             interstitialAd?.show(activity)
         } else {
             _listener?.onAdFailedToShow("Ad not loaded or activity invalid")
+            emitEvent(AdEvent.Failed(
+                AdType.INTERSTITIAL,
+                CustomAdError.ShowError(1, "Ad not loaded or activity invalid"),
+                getAdId()
+            ))
         }
     }
 
