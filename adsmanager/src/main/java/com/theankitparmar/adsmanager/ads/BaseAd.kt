@@ -22,7 +22,7 @@ abstract class BaseAd<State : AdState>(
     private val adId: String = generateAdId(adType)
 ) : AdManager {
 
-    protected val scope = CoroutineScope(
+    protected open val scope = CoroutineScope(
         SupervisorJob() + Dispatchers.Main.immediate +
                 CoroutineName("AdManager-$adType-$adId")
     )

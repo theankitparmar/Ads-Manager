@@ -31,3 +31,6 @@
 
 # Keep callback interfaces
 -keep public interface com.google.android.gms.ads.** { *; }
+
+# Keep AdsManager classes
+-keep class com.theankitparmar.adsmanager.** { *; }

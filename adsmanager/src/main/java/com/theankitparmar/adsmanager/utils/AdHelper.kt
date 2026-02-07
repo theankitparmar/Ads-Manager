@@ -27,6 +27,9 @@ object AdHelper {
     private var loadingDialog: AlertDialog? = null
     // Reusable interstitial ad instance
     private var reusableInterstitialAd: InterstitialAd? = null
+    // Add this to AdHelper.kt - Reuse App Open Ad instance
+    private var reusableAppOpenAd: com.theankitparmar.adsmanager.ads.open.AppOpenAd? = null
+
 
     fun showBannerAd(
         context: Context,
@@ -259,6 +262,9 @@ object AdHelper {
         })
     }
 
+    // Inside AdHelper.kt
+
+    // Updated showAppOpenAd method in AdHelper.kt
     fun showAppOpenAd(
         activity: Activity,
         showLoadingDialog: Boolean = true,
@@ -267,11 +273,17 @@ object AdHelper {
     ): Boolean {
         Log.d(TAG, "Attempting to show an App Open ad.")
 
+        // Reuse or create App Open Ad instance
+        val appOpenAd = reusableAppOpenAd ?: AdsManager.getAppOpenAd(activity).also {
+            reusableAppOpenAd = it
+        }
+
         if (showLoadingDialog) {
             showLoadingDialog(activity, "Loading...")
         }
 
-        val appOpenAd = AdsManager.getAppOpenAd(activity)
+        // Clear previous listener to avoid conflicts
+        appOpenAd.setListener(null)
 
         appOpenAd.setListener(object : AdListener {
             override fun onAdLoading() {
@@ -281,17 +293,27 @@ object AdHelper {
             override fun onAdLoaded() {
                 Log.d(TAG, "App Open ad loaded successfully.")
                 dismissLoadingDialog()
+                // Show immediately when loaded
                 appOpenAd.showIfAvailable(activity)
             }
 
             override fun onAdDismissed() {
                 Log.d(TAG, "App Open ad was dismissed.")
+                appOpenAd.setListener(null) // Clear listener
                 dismissLoadingDialog()
                 onAdDismissed?.invoke()
             }
 
             override fun onAdFailedToLoad(error: String) {
                 Log.e(TAG, "App Open ad failed to load. Error: $error")
+                appOpenAd.setListener(null) // Clear listener
+                dismissLoadingDialog()
+                onAdFailed?.invoke(error)
+            }
+
+            override fun onAdFailedToShow(error: String) {
+                Log.e(TAG, "App Open ad failed to show. Error: $error")
+                appOpenAd.setListener(null) // Clear listener
                 dismissLoadingDialog()
                 onAdFailed?.invoke(error)
             }
@@ -300,17 +322,21 @@ object AdHelper {
                 Log.d(TAG, "The user clicked on the App Open ad.")
             }
 
-            override fun onAdFailedToShow(error: String) {
-                Log.e(TAG, "App Open ad failed to show. Error: $error")
-                dismissLoadingDialog()
-                onAdFailed?.invoke(error)
-            }
-
             override fun onAdImpression() {}
             override fun onAdRevenue(valueMicros: Long, currencyCode: String, precision: Int) {}
         })
 
-        return appOpenAd.showIfAvailable(activity)
+        // Check if ad is already available
+        return if (appOpenAd.isLoaded()) {
+            Log.d(TAG, "App Open ad already loaded, showing immediately.")
+            dismissLoadingDialog()
+            appOpenAd.showIfAvailable(activity)
+            true
+        } else {
+            // Only load if not already loading
+            appOpenAd.loadAd()
+            false
+        }
     }
 
     private fun showShimmerEffect(context: Context, container: ViewGroup) {
