@@ -23,33 +23,13 @@ class AppOpenAd(
 
     private var appOpenAd: com.google.android.gms.ads.appopen.AppOpenAd? = null
     private var loadTime: Long = 0
-    private var retryAttempt = 0
-    private var canLoadAgain = true // Cooldown flag
-    private var lastLoadAttemptTime: Long = 0
 
     override val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
     override fun getTestAdUnitId(): String = "ca-app-pub-3940256099942544/9257395921"
 
-    // CRITICAL FIX: Add cooldown mechanism
-    private fun canAttemptLoad(): Boolean {
-        if (!canLoadAgain) return false
-
-        // Check if enough time has passed since last attempt
-        val timeSinceLastAttempt = System.currentTimeMillis() - lastLoadAttemptTime
-        val minCooldown = when {
-            retryAttempt == 0 -> 0L // First attempt, no cooldown
-            retryAttempt <= 2 -> 15000L // 15 seconds for first 2 retries
-            retryAttempt <= 5 -> 30000L // 30 seconds for next 3 retries
-            else -> 60000L // 60 seconds for subsequent retries
-        }
-
-        return timeSinceLastAttempt >= minCooldown
-    }
-
     override suspend fun loadAdInternal(): AdResult<Unit> = withContext(Dispatchers.Main) {
-        // Remove cooldown check - always try to load
-
+        // ALWAYS try to load - no cooldown checks
         if (isAdAvailable()) {
             return@withContext AdResult.Success(Unit)
         }
@@ -74,7 +54,7 @@ class AppOpenAd(
                                     Log.d("AppOpenAd", "Ad dismissed")
                                     appOpenAd = null
                                     _listener?.onAdDismissed()
-                                    // Don't auto-reload - let AdHelper handle it
+                                    // DO NOT auto-reload here - let AdHelper handle it
                                 }
 
                                 override fun onAdFailedToShowFullScreenContent(error: com.google.android.gms.ads.AdError) {
@@ -96,9 +76,10 @@ class AppOpenAd(
                         }
 
                         override fun onAdFailedToLoad(error: com.google.android.gms.ads.LoadAdError) {
+                            Log.e("AppOpenAd", "Ad failed to load: ${error.message}")
                             _listener?.onAdFailedToLoad(error.message)
 
-                            // Simple retry logic - just report failure
+                            // Simple failure - just report, no retry logic
                             if (!continuation.isCancelled) continuation.resume(AdResult.Error(error.message))
                         }
                     }
@@ -114,10 +95,7 @@ class AppOpenAd(
             appOpenAd?.show(activity)
         } else {
             _listener?.onAdFailedToShow("Ad not ready")
-            // Don't load immediately - wait for cooldown
-            if (canAttemptLoad()) {
-                loadAd()
-            }
+            // DO NOT auto-load here - AdHelper will handle it
         }
     }
 
@@ -135,11 +113,12 @@ class AppOpenAd(
             showAd(activity)
             true
         } else {
-            // Only load if we're not in cooldown
-            if (canAttemptLoad()) {
-                loadAd()
-            }
             false
         }
+    }
+
+    // Add this method to check if ad is loaded (used by AdHelper)
+    override fun isLoaded(): Boolean {
+        return isAdAvailable()
     }
 }

@@ -1,4 +1,4 @@
-// NativeAd.kt
+// NativeAd.kt (updated)
 package com.theankitparmar.adsmanager.ads.native
 
 import android.app.Activity
@@ -31,7 +31,10 @@ import kotlin.coroutines.resume
 class NativeAd(
     context: Context,
     adUnitId: String,
-    config: AdsConfiguration
+    config: AdsConfiguration,
+    private val nativeType: NativeType = NativeType.MEDIUM,
+    private val customNativeLayoutResId: Int? = null,
+    private val customShimmerLayoutResId: Int? = null
 ) : BaseAd<AdState>(
     context = context,
     adUnitId = adUnitId,
@@ -43,6 +46,68 @@ class NativeAd(
     private var adLoader: AdLoader? = null
 
     override fun getTestAdUnitId(): String = "ca-app-pub-3940256099942544/2247696110"
+
+    // Get layout resource ID based on native type
+    private fun getLayoutResId(): Int {
+        return when (nativeType) {
+            NativeType.SMALL -> R.layout.native_ad_small
+            NativeType.MEDIUM -> R.layout.native_ad_medium
+            NativeType.LARGE -> R.layout.native_ad_large
+            NativeType.FULL_SCREEN -> R.layout.native_ad_full_screen
+            NativeType.CUSTOM -> customNativeLayoutResId ?: R.layout.native_ad_medium
+        }
+    }
+
+    // Get shimmer layout resource ID
+    fun getShimmerLayoutResId(): Int? {
+        return if (nativeType == NativeType.CUSTOM) {
+            customShimmerLayoutResId
+        } else {
+            when (nativeType) {
+                NativeType.SMALL -> R.layout.shimmer_native_small
+                NativeType.MEDIUM -> R.layout.shimmer_native_medium
+                NativeType.LARGE -> R.layout.shimmer_native_large
+                NativeType.FULL_SCREEN -> R.layout.shimmer_native_full_screen
+                else -> null
+            }
+        }
+    }
+
+    // NativeAd.kt - Update getExpectedHeight to use getExactHeightDp
+    fun getExpectedHeight(context: Context): Int {
+        return when (nativeType) {
+            NativeType.SMALL, NativeType.MEDIUM, NativeType.LARGE -> {
+                // Get exact height in dp and convert to pixels
+                val heightDp = getExactHeightDp()
+                if (heightDp > 0) {
+                    (heightDp * context.resources.displayMetrics.density).toInt()
+                } else {
+                    ViewGroup.LayoutParams.WRAP_CONTENT
+                }
+            }
+            NativeType.FULL_SCREEN -> ViewGroup.LayoutParams.MATCH_PARENT
+            NativeType.CUSTOM -> {
+                customNativeLayoutResId?.let { layoutId ->
+                    try {
+                        // Try to measure custom layout
+                        val inflater = LayoutInflater.from(context)
+                        val previewView = inflater.inflate(layoutId, null as ViewGroup?, false)
+                        previewView.measure(
+                            View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED),
+                            View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
+                        )
+                        previewView.measuredHeight
+                    } catch (e: Exception) {
+                        ViewGroup.LayoutParams.WRAP_CONTENT
+                    }
+                } ?: ViewGroup.LayoutParams.WRAP_CONTENT
+            }
+        }
+    }
+
+    private fun Int.dpToPx(context: Context): Int {
+        return (this * context.resources.displayMetrics.density).toInt()
+    }
 
     override suspend fun loadAdInternal(): AdResult<Unit> = withContext(Dispatchers.Main) {
         return@withContext try {
@@ -70,7 +135,7 @@ class NativeAd(
                         }
                     }
                     .withAdListener(object : AdListener() {
-                        override fun onAdFailedToLoad(error: com.google.android.gms.ads.LoadAdError) {
+                        override fun onAdFailedToLoad(error: LoadAdError) {
                             _listener?.onAdFailedToLoad(error.message)
                             emitEvent(AdEvent.Failed(
                                 AdType.NATIVE,
@@ -110,34 +175,36 @@ class NativeAd(
 
     fun inflateNativeAdView(
         container: ViewGroup,
-        layoutResId: Int
+        layoutResId: Int? = null
     ): NativeAdView? {
         val ad = nativeAd ?: return null
         val context = getContext() ?: return null
 
+        val layoutId = layoutResId ?: getLayoutResId()
+
         val adView = LayoutInflater.from(context)
-            .inflate(layoutResId, container, false) as? NativeAdView ?: return null
+            .inflate(layoutId, container, false) as? NativeAdView ?: return null
 
         populateNativeAdView(ad, adView)
-
-        container.removeAllViews()
-        container.addView(adView)
-
         return adView
     }
 
     private fun populateNativeAdView(nativeAd: NativeAd, adView: NativeAdView) {
-        adView.mediaView = adView.findViewById(R.id.ad_media)
+        // Headline
         adView.headlineView = adView.findViewById(R.id.ad_headline)
-        adView.bodyView = adView.findViewById(R.id.ad_body)
-        adView.callToActionView = adView.findViewById(R.id.ad_call_to_action)
-        adView.iconView = adView.findViewById(R.id.ad_icon)
-        adView.starRatingView = adView.findViewById(R.id.ad_stars)
-        adView.advertiserView = adView.findViewById(R.id.ad_advertiser)
-
         (adView.headlineView as? TextView)?.text = nativeAd.headline
-        adView.mediaView?.setMediaContent(nativeAd.mediaContent!!)
 
+        // Media content
+        adView.mediaView = adView.findViewById(R.id.ad_media)
+        if (nativeAd.mediaContent != null && adView.mediaView != null) {
+            adView.mediaView?.setMediaContent(nativeAd.mediaContent!!)
+            adView.mediaView?.visibility = View.VISIBLE
+        } else {
+            adView.mediaView?.visibility = View.GONE
+        }
+
+        // Body
+        adView.bodyView = adView.findViewById(R.id.ad_body)
         if (nativeAd.body == null) {
             adView.bodyView?.visibility = View.INVISIBLE
         } else {
@@ -145,6 +212,8 @@ class NativeAd(
             (adView.bodyView as? TextView)?.text = nativeAd.body
         }
 
+        // Call to Action
+        adView.callToActionView = adView.findViewById(R.id.ad_call_to_action)
         if (nativeAd.callToAction == null) {
             adView.callToActionView?.visibility = View.INVISIBLE
         } else {
@@ -152,6 +221,8 @@ class NativeAd(
             (adView.callToActionView as? Button)?.text = nativeAd.callToAction
         }
 
+        // Icon
+        adView.iconView = adView.findViewById(R.id.ad_icon)
         if (nativeAd.icon == null) {
             adView.iconView?.visibility = View.GONE
         } else {
@@ -159,6 +230,8 @@ class NativeAd(
             adView.iconView?.visibility = View.VISIBLE
         }
 
+        // Star Rating
+        adView.starRatingView = adView.findViewById(R.id.ad_stars)
         if (nativeAd.starRating == null) {
             adView.starRatingView?.visibility = View.INVISIBLE
         } else {
@@ -166,6 +239,8 @@ class NativeAd(
             adView.starRatingView?.visibility = View.VISIBLE
         }
 
+        // Advertiser
+        adView.advertiserView = adView.findViewById(R.id.ad_advertiser)
         if (nativeAd.advertiser == null) {
             adView.advertiserView?.visibility = View.INVISIBLE
         } else {
@@ -173,8 +248,39 @@ class NativeAd(
             adView.advertiserView?.visibility = View.VISIBLE
         }
 
+        // Store (if exists)
+//        val storeView = adView.findViewById<TextView>(R.id.ad_store)
+//        if (nativeAd.store == null) {
+//            storeView?.visibility = View.INVISIBLE
+//        } else {
+//            storeView?.text = nativeAd.store
+//            storeView?.visibility = View.VISIBLE
+//        }
+//
+//        // Price (if exists)
+//        val priceView = adView.findViewById<TextView>(R.id.ad_price)
+//        if (nativeAd.price == null) {
+//            priceView?.visibility = View.INVISIBLE
+//        } else {
+//            priceView?.text = nativeAd.price
+//            priceView?.visibility = View.VISIBLE
+//        }
+
         adView.setNativeAd(nativeAd)
     }
+
+    // NativeAd.kt - Add this method
+        fun getExactHeightDp(): Int {
+        return when (nativeType) {
+            NativeType.SMALL -> 72
+            NativeType.MEDIUM -> 140
+            NativeType.LARGE -> 380
+            NativeType.FULL_SCREEN -> -1 // Full screen
+            NativeType.CUSTOM -> -2 // Custom/Wrap content
+        }
+    }
+
+    fun getNativeType(): NativeType = nativeType
 
     override fun showAd(activity: Activity?) {}
 

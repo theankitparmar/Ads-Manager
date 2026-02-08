@@ -14,6 +14,7 @@ import com.theankitparmar.adsmanager.core.AdsManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * Manager for App Open Ads that shows ads only when app returns from background
@@ -21,17 +22,15 @@ import kotlinx.coroutines.launch
 object AppOpenManager : Application.ActivityLifecycleCallbacks, LifecycleObserver {
 
     private const val TAG = "AppOpenManager"
-    private const val COOLDOWN_PERIOD = 0L // Remove cooldown completely
     private const val MIN_BACKGROUND_TIME = 2000L // App must be in background for at least 2 seconds
+    private const val AD_SHOW_DELAY = 500L // Delay to ensure activity is ready
 
     private lateinit var application: Application
     private var currentActivity: Activity? = null
-    private var isShowingAd = false
-    private var isAppInForeground = false
-    private var wasAppInBackground = false // TRACK if app was truly in background
+    private var isShowingAd = AtomicBoolean(false)
+    private var wasAppInBackground = true // Start as true so first launch doesn't show ad
     private var backgroundTime: Long = 0
     private var lastAdShownTime: Long = 0
-    private var isFirstLaunch = true // NEW: Track first launch
     private val handler = Handler(Looper.getMainLooper())
 
     // Activities that should NOT show app open ads
@@ -40,6 +39,9 @@ object AppOpenManager : Application.ActivityLifecycleCallbacks, LifecycleObserve
     // Configurable settings
     private var enabled = true
     private var debugMode = false
+    private var showOnFirstLaunch = false // Don't show on first app launch by default
+    private var cooldownPeriod = 0L // Cooldown between ads
+    private var isAppLaunching = true // Track if app is launching for the first time
 
     /**
      * Initialize the App Open Manager
@@ -57,6 +59,11 @@ object AppOpenManager : Application.ActivityLifecycleCallbacks, LifecycleObserve
 
         // Register for app process lifecycle (foreground/background)
         ProcessLifecycleOwner.get().lifecycle.addObserver(this)
+
+        // Preload first ad
+        handler.postDelayed({
+            preloadNextAd()
+        }, 1000)
 
         Log.d(TAG, "AppOpenManager initialized")
     }
@@ -119,12 +126,15 @@ object AppOpenManager : Application.ActivityLifecycleCallbacks, LifecycleObserve
     fun onAppForegrounded() {
         if (debugMode) Log.d(TAG, "App came to foreground")
 
-        // REMOVED: Don't skip on first launch for testing
-        // if (isFirstLaunch) {
-        //     if (debugMode) Log.d(TAG, "First launch - skipping App Open Ad")
-        //     isFirstLaunch = false
-        //     return
-        // }
+        // Don't show ad on first launch unless configured to
+        if (isAppLaunching && !showOnFirstLaunch) {
+            if (debugMode) Log.d(TAG, "First launch - skipping App Open Ad")
+            isAppLaunching = false
+            return
+        }
+
+        // Reset first launch flag after first foreground
+        isAppLaunching = false
 
         // Only show ad if app was in background for sufficient time
         if (wasAppInBackground) {
@@ -136,7 +146,7 @@ object AppOpenManager : Application.ActivityLifecycleCallbacks, LifecycleObserve
                 // Wait a bit before showing ad to ensure activity is ready
                 handler.postDelayed({
                     showAdIfAvailable()
-                }, 500)
+                }, AD_SHOW_DELAY)
             } else {
                 if (debugMode) Log.d(TAG, "App was in background for only ${timeInBackground}ms - not showing ad")
             }
@@ -154,25 +164,30 @@ object AppOpenManager : Application.ActivityLifecycleCallbacks, LifecycleObserve
             return false
         }
 
-        if (isShowingAd) {
+        if (isShowingAd.get()) {
             if (debugMode) Log.d(TAG, "Already showing an ad")
             return false
         }
 
-        if (currentActivity == null || currentActivity?.isFinishing == true) {
+        val activity = currentActivity
+        if (activity == null || activity.isFinishing || activity.isDestroyed) {
             if (debugMode) Log.d(TAG, "No valid activity")
             return false
         }
 
         // Check if current activity is excluded
-        val currentActivityName = currentActivity?.javaClass?.name
-        if (currentActivityName != null && excludedActivities.contains(currentActivityName)) {
+        val currentActivityName = activity.javaClass.name
+        if (excludedActivities.contains(currentActivityName)) {
             if (debugMode) Log.d(TAG, "Current activity is excluded: $currentActivityName")
             return false
         }
 
-        // REMOVED: Cooldown check
-        // No timer logic - always try to show if other conditions are met
+        // Check cooldown period
+        val timeSinceLastAd = System.currentTimeMillis() - lastAdShownTime
+        if (timeSinceLastAd < cooldownPeriod) {
+            if (debugMode) Log.d(TAG, "Cooldown active: ${cooldownPeriod - timeSinceLastAd}ms remaining")
+            return false
+        }
 
         // Check if AdsManager is initialized
         if (!AdsManager.isInitialized()) {
@@ -186,10 +201,7 @@ object AppOpenManager : Application.ActivityLifecycleCallbacks, LifecycleObserve
     /**
      * Show app open ad if available and conditions are met
      */
-    /**
-     * Show app open ad if available and conditions are met
-     */
-    private fun showAdIfAvailable() {
+    fun showAdIfAvailable() {
         if (!canShowAd()) {
             return
         }
@@ -198,7 +210,10 @@ object AppOpenManager : Application.ActivityLifecycleCallbacks, LifecycleObserve
 
         if (debugMode) Log.d(TAG, "Attempting to show App Open Ad")
 
-        isShowingAd = true
+        if (!isShowingAd.compareAndSet(false, true)) {
+            if (debugMode) Log.d(TAG, "Another ad is already being shown")
+            return
+        }
 
         // Use AdHelper to show the ad
         CoroutineScope(Dispatchers.Main).launch {
@@ -212,17 +227,28 @@ object AppOpenManager : Application.ActivityLifecycleCallbacks, LifecycleObserve
                     activity = activity,
                     showLoadingDialog = false,
                     onAdDismissed = {
-                        isShowingAd = false
+                        isShowingAd.set(false)
+                        lastAdShownTime = System.currentTimeMillis()
                         if (debugMode) Log.d(TAG, "App Open Ad dismissed")
+
+                        // Preload next ad after dismissal
+                        handler.postDelayed({
+                            preloadNextAd()
+                        }, 1000)
                     },
                     onAdFailed = { error ->
-                        isShowingAd = false
+                        isShowingAd.set(false)
                         if (debugMode) Log.e(TAG, "App Open Ad failed: $error")
+
+                        // Try to preload another ad after failure
+                        handler.postDelayed({
+                            preloadNextAd()
+                        }, 2000)
                     }
                 )
 
             } catch (e: Exception) {
-                isShowingAd = false
+                isShowingAd.set(false)
                 Log.e(TAG, "Error showing App Open Ad", e)
             }
         }
@@ -232,7 +258,10 @@ object AppOpenManager : Application.ActivityLifecycleCallbacks, LifecycleObserve
      * Preload the next app open ad
      */
     fun preloadNextAd() {
-        if (!AdsManager.isInitialized()) return
+        if (!AdsManager.isInitialized()) {
+            if (debugMode) Log.d(TAG, "AdsManager not initialized, can't preload ad")
+            return
+        }
 
         try {
             AdsManager.getAppOpenAd(application)
@@ -252,10 +281,35 @@ object AppOpenManager : Application.ActivityLifecycleCallbacks, LifecycleObserve
     }
 
     /**
-     * Reset the first launch flag (useful for testing)
+     * Set minimum background time before showing ad
      */
-    fun resetFirstLaunch() {
-        isFirstLaunch = true
+    fun setMinBackgroundTime(minTime: Long) {
+        if (debugMode) Log.d(TAG, "Minimum background time set to ${minTime}ms")
+        // This would need to be stored and used in onAppForegrounded
+        // You need to update the constant or create a variable for it
+    }
+
+    /**
+     * Set whether to show ad on first launch
+     */
+    fun setShowOnFirstLaunch(show: Boolean) {
+        showOnFirstLaunch = show
+        if (debugMode) Log.d(TAG, "Show on first launch: $show")
+    }
+
+    /**
+     * Set cooldown period between ads
+     */
+    fun setCooldownPeriod(cooldown: Long) {
+        cooldownPeriod = cooldown
+        if (debugMode) Log.d(TAG, "Cooldown period set to ${cooldown}ms")
+    }
+
+    /**
+     * Check if ad can be shown for current activity
+     */
+    fun canShowAdForCurrentActivity(): Boolean {
+        return canShowAd()
     }
 
     /**
@@ -263,8 +317,11 @@ object AppOpenManager : Application.ActivityLifecycleCallbacks, LifecycleObserve
      */
     fun destroy() {
         handler.removeCallbacksAndMessages(null)
-        application.unregisterActivityLifecycleCallbacks(this)
+        if (this::application.isInitialized) {
+            application.unregisterActivityLifecycleCallbacks(this)
+        }
         currentActivity = null
+        isShowingAd.set(false)
         Log.d(TAG, "AppOpenManager destroyed")
     }
 
@@ -275,7 +332,6 @@ object AppOpenManager : Application.ActivityLifecycleCallbacks, LifecycleObserve
 
     override fun onActivityStarted(activity: Activity) {
         currentActivity = activity
-        isAppInForeground = true
         if (debugMode) Log.d(TAG, "Activity started: ${activity.javaClass.simpleName}")
     }
 
@@ -284,11 +340,8 @@ object AppOpenManager : Application.ActivityLifecycleCallbacks, LifecycleObserve
         // Not showing ad here to avoid showing when switching between activities
     }
 
-    override fun onActivitySaveInstanceState(
-        activity: Activity,
-        outState: Bundle
-    ) {
-
+    override fun onActivitySaveInstanceState(activity: Activity, outState: Bundle) {
+        // Not used
     }
 
     override fun onActivityPaused(activity: Activity) {

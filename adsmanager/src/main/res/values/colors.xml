@@ -10,4 +10,9 @@
     <color name="gray_light">#E0E0E0</color>
     <color name="shimmer_base">#E0E0E0</color>
     <color name="shimmer_highlight">#F5F5F5</color>
+
+    <color name="shimmer_color">#E0E0E0</color>
+    <color name="text_primary">#212121</color>
+    <color name="text_secondary">#757575</color>
+    <color name="card_background">#FFFFFF</color>
 </resources>

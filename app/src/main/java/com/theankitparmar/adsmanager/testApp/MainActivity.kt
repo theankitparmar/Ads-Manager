@@ -10,6 +10,7 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import com.google.android.gms.ads.AdSize
 import com.theankitparmar.adsmanager.BuildConfig
+import com.theankitparmar.adsmanager.ads.native.NativeType
 import com.theankitparmar.adsmanager.core.AdsManager
 import com.theankitparmar.adsmanager.utils.AdHelper
 import kotlinx.coroutines.CoroutineScope
@@ -101,7 +102,7 @@ class MainActivity : AppCompatActivity() {
                 context = this,
                 container = bannerContainer,
                 showShimmer = true,
-                adSize = AdSize.BANNER,
+                bannerAdSize = AdHelper.BannerAdSize.LARGE,
                 onAdLoaded = {
                     runOnUiThread {
                         Toast.makeText(this, "Banner ad loaded successfully", Toast.LENGTH_SHORT).show()
@@ -127,8 +128,8 @@ class MainActivity : AppCompatActivity() {
         try {
             AdHelper.showNativeAd(
                 context = this,
+                nativeType = NativeType.LARGE,
                 container = nativeContainer,
-                layoutResId = R.layout.native_ad_layout,
                 showShimmer = true,
                 onAdLoaded = {
                     runOnUiThread {
