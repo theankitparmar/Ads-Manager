@@ -1,60 +1,50 @@
-# AdsManager Library
+AdsManager Library
+A modern, lightweight Android Ads Management Library for Google AdMob that simplifies ad integration with built-in support for Banner, Interstitial, Native, and App Open ads. Features a clean API, automatic lifecycle management, and smart ad preloading.
 
-A lightweight, easy-to-use **Android Ads Management Library** for **Google AdMob** that simplifies ad integration with built-in support for **Banner**, **Interstitial**, **Native**, and **App Open** ads.
+✨ Features
+✅ Multiple Ad Formats: Banner, Interstitial, Native, App Open
 
----
+✅ Smart App Open Ads: Automatic background-to-foreground detection
 
-## 📱 Features
+✅ Pre-built Ad Types: Multiple Native ad layouts (Small, Medium, Full Screen, Custom)
 
-- ✅ **Multiple Ad Formats**: Banner, Interstitial, Native, App Open  
-- ✅ **Easy Integration**: Simple API for showing ads  
-- ✅ **Built-in Shimmer Effects**: Loading placeholders for better UX  
-- ✅ **Auto Retry**: Configurable retry policies for failed ads  
-- ✅ **Test Mode**: Built-in test ad IDs for development  
-- ✅ **Lifecycle Management**: Automatic pause/resume/destroy  
-- ✅ **Consent Form Support**: GDPR compliance ready  
+✅ Built-in Shimmer Effects: Loading placeholders for better UX
 
----
+✅ Lifecycle Management: Automatic pause/resume/destroy
 
-## 📦 Installation
+✅ Test Mode: Built-in test ad IDs for development
 
-### Add to your project
+✅ Debug Tools: Built-in debug information dialog
 
-Add the dependency to your **app-level** `build.gradle.kts`:
+✅ Edge-to-Edge: Modern UI with edge-to-edge support
 
-```kotlin
+✅ Coroutine Support: Async ad initialization and loading
+
+📦 Installation
+Add to your project
+Add the dependency to your app-level build.gradle.kts:
+
+kotlin
 dependencies {
-    implementation("com.github.theankitparmar:adsmanager:1.0.0")
+    implementation("com.github.theankitparmar:adsmanager:2.0.0")
 }
-```
-
 Or if using a local module:
 
-```kotlin
+kotlin
 dependencies {
     implementation(project(":ads-manager"))
 }
-```
+🔐 Permissions
+Ensure your app has these permissions in AndroidManifest.xml:
 
-------
-
-## 🔐 Permissions
-
-Ensure your app has these permissions in `AndroidManifest.xml`:
-
-```xml
+xml
 <uses-permission android:name="android.permission.INTERNET" />
 <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-```
+🧩 Google AdMob Setup
+Add your AdMob App ID
+In your AndroidManifest.xml:
 
------
-
-## 🧩 Google AdMob Setup
-### Add your AdMob App ID
-
-In your `AndroidManifest.xml`:
-
-```xml
+xml
 <manifest>
     <application>
         <meta-data
@@ -62,373 +52,481 @@ In your `AndroidManifest.xml`:
             android:value="ca-app-pub-xxxxxxxxxxxxxxxx~yyyyyyyyyy"/>
     </application>
 </manifest>
-```
 Get your Ad Unit IDs
 Get your ad unit IDs from the AdMob Console.
------
 
-## 🚀 Quick Start
-### 1) Initialize AdsManager
+🚀 Quick Start
+1) Initialize AdsManager
+Initialize in your Application class:
 
-Initialise in your Application class:
-```kotlin 
-class MyApplication : Application() {
+kotlin
+class MainApplication : Application() {
     override fun onCreate() {
         super.onCreate()
 
-        val isTestMode = BuildConfig.DEBUG // Use test ads in debug mode
+        // ONE simple initialization call
+        AdsManager.initialize(
+            application = this,
+            config = AdsConfig(
+                isTestMode = BuildConfig.DEBUG,
+                enableDebugLogging = BuildConfig.DEBUG,
 
-        val adUnits = AdUnits(
-            bannerAdUnitId = if (isTestMode) "ca-app-pub-3940256099942544/6300978111" else "YOUR_BANNER_ID",
-            interstitialAdUnitId = if (isTestMode) "ca-app-pub-3940256099942544/1033173712" else "YOUR_INTERSTITIAL_ID",
-            nativeAdUnitId = if (isTestMode) "ca-app-pub-3940256099942544/2247696110" else "YOUR_NATIVE_ID",
-            appOpenAdUnitId = if (isTestMode) "ca-app-pub-3940256099942544/3419835294" else "YOUR_APPOPEN_ID"
-        )
+                // Ad Unit IDs (test IDs for debug mode)
+                bannerAdUnitId = "ca-app-pub-3940256099942544/6300978111",
+                interstitialAdUnitId = "ca-app-pub-3940256099942544/1033173712",
+                nativeAdUnitId = "ca-app-pub-3940256099942544/2247696110",
+                appOpenAdUnitId = "ca-app-pub-3940256099942544/9257395921",
+                rewardedAdUnitId = "ca-app-pub-3940256099942544/5224354917",
 
-        val config = AdsConfiguration(
-            isTestMode = isTestMode,
-            adUnits = adUnits,
-            enableAutoReload = true,
-            retryPolicy = RetryPolicy.default,
-            enableConsentForm = false // Set true for GDPR regions
-        )
+                // App Open Ad customization
+                appOpenAdEnabled = true,
+                showAppOpenOnFirstLaunch = false,
+                minBackgroundTimeForAppOpen = 2000L, // 2 seconds
 
-        AdsManager.initialize(this, config)
-    }
-}
-
-```
-
--------
-
-### 2) Show Banner Ad
-
-In your Activity or Fragment:
-```kotlin
-class MainActivity : AppCompatActivity() {
-
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
-
-        AdHelper.showBannerAd(
-            context = this,
-            container = findViewById(R.id.banner_container),
-            showShimmer = true,
-            adSize = AdSize.LARGE_BANNER,
-            onAdLoaded = {
-                // Ad loaded successfully
-            },
-            onAdFailed = { error ->
-                Log.e("MainActivity", "Banner ad failed: $error")
+                // Activity exclusion callback
+                shouldShowAppOpenAd = { activity ->
+                    activity?.let {
+                        // Exclude specific activities
+                        when (activity) {
+                            SplashActivity::class -> false
+                            else -> true
+                        }
+                    } ?: true
+                }
+            ),
+            onInitialized = {
+                // Optional: Do something after initialization
+                println("✅ AdsManager initialized successfully!")
             }
         )
     }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        AdHelper.destroyAds() // Clean up ads
-    }
 }
+2) Create Your Main Activity
+Extend BaseAdsActivity for automatic ad lifecycle management:
 
-```
+kotlin
+class MainActivity : BaseAdsActivity() {
+    private lateinit var binding: ActivityMainBinding
 
------ 
-
-### 3) Show Interstitial Ad
-
-```kotlin
-fun showInterstitialAd() {
-    AdHelper.showInterstitialAd(
-        activity = this,
-        showLoadingDialog = true,
-        onAdDismissed = {
-            // Ad was dismissed, continue your flow
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
+        
+        binding = ActivityMainBinding.inflate(layoutInflater)
+        setContentView(binding.root)
+        
+        setupAdsButtons()
+    }
+    
+    private fun setupAdsButtons() {
+        binding.btnLoadBanner.setOnClickListener {
+            loadBannerAd()
+        }
+        
+        binding.btnShowInterstitial.setOnClickListener {
+            showInterstitialAd()
+        }
+        
+        binding.btnLoadNative.setOnClickListener {
+            loadNativeAd()
+        }
+        
+        binding.btnTestAppOpen.setOnClickListener {
+            testAppOpenAd()
+        }
+    }
+    
+    // ... ad loading methods
+}
+3) Load Banner Ad
+kotlin
+private fun loadBannerAd() {
+    AdHelper.showBannerAd(
+        context = this,
+        container = binding.bannerAdContainer,
+        bannerAdSize = AdHelper.BannerAdSize.STANDARD,
+        showShimmer = true,
+        onAdLoaded = {
+            // Banner ad loaded successfully
+            showSnackbar("Banner ad loaded successfully")
         },
         onAdFailed = { error ->
-            // Ad failed to load, continue without ad
+            // Handle error
+            showSnackbar("Banner ad failed: $error", true)
         }
     )
 }
-
-```
-
-### 4) Show Native Ad
-```kotlin
-AdHelper.showNativeAd(
-    context = this,
-    container = findViewById(R.id.native_container),
-    layoutResId = R.layout.native_ad_layout, // Your custom layout
-    showShimmer = true,
-    onAdLoaded = {
-        // Native ad loaded
-    },
-    onAdFailed = { error ->
-        // Handle error
-    }
-)
-```
-
-------
-
-### 5. Show App Open Ad
-
-In your `SplashActivity` or main entry activity:
-
-```kotlin
-override fun onCreate(savedInstanceState: Bundle?) {
-    super.onCreate(savedInstanceState)
-    
-    val wasAdShown = AdHelper.showAppOpenAd(
+4) Show Interstitial Ad
+kotlin
+private fun showInterstitialAd() {
+    AdHelper.showInterstitialAd(
         activity = this,
         showLoadingDialog = false,
         onAdDismissed = {
-            // Start main activity after ad
-            startActivity(Intent(this, MainActivity::class.java))
-            finish()
+            // Ad dismissed, continue your flow
+            showSnackbar("Interstitial ad dismissed")
         },
         onAdFailed = { error ->
-            // Start main activity even if ad fails
-            startActivity(Intent(this, MainActivity::class.java))
-            finish()
+            // Handle error
+            showSnackbar("Interstitial failed: $error", true)
         }
     )
-    
-    if (!wasAdShown) {
-        // No ad available, proceed immediately
-        startActivity(Intent(this, MainActivity::class.java))
-        finish()
-    }
 }
-```
+5) Load Native Ad
+kotlin
+private fun loadNativeAd() {
+    AdHelper.showNativeAd(
+        context = this,
+        container = binding.nativeAdContainer,
+        nativeType = NativeType.MEDIUM,
+        showShimmer = true,
+        onAdLoaded = {
+            // Native ad loaded successfully
+            showSnackbar("Native ad loaded successfully")
+        },
+        onAdFailed = { error ->
+            // Handle error
+            showSnackbar("Native ad failed: $error", true)
+        }
+    )
+}
+6) Test App Open Ad
+kotlin
+private fun testAppOpenAd() {
+    AdHelper.showAppOpenAd(
+        activity = this,
+        showLoadingDialog = false,
+        onAdDismissed = {
+            // App Open ad dismissed
+            showSnackbar("App Open ad dismissed")
+        },
+        onAdFailed = { error ->
+            // Handle error
+            showSnackbar("App Open failed: $error", true)
+        }
+    )
+}
+🎨 Ad Types & Customization
+Banner Ad Sizes
+kotlin
+enum class BannerAdSize {
+    STANDARD,      // 320x50
+    LARGE,         // 320x100
+    MEDIUM_RECTANGLE, // 300x250
+    FULL_BANNER,   // 468x60
+    LEADERBOARD,   // 728x90
+    ADAPTIVE       // Automatically adjusts
+}
 
------ 
-
-## 🎨 Customization
-### Custom Ad Sizes
-
-```kotlin
-// Use different banner sizes
+// Usage
 AdHelper.showBannerAd(
     context = this,
     container = bannerContainer,
-    adSize = AdSize.BANNER, // Standard banner (320x50)
-    // or AdSize.LARGE_BANNER (320x100)
-    // or AdSize.MEDIUM_RECTANGLE (300x250)
-    // or AdSize.FULL_BANNER (468x60)
-    // or AdSize.LEADERBOARD (728x90)
+    bannerAdSize = AdHelper.BannerAdSize.ADAPTIVE, // or any other size
+    // ... other parameters
 )
-```
+Native Ad Types
+kotlin
+enum class NativeType {
+    SMALL,      // Compact native ad
+    MEDIUM,     // Medium size (recommended)
+    LARGE,      // Large native ad
+    FULL_SCREEN,// Full screen native ad
+    CUSTOM      // Custom layout
+}
 
--------
-
-### Custom Retry Policy
-
-```kotlin
-val retryPolicy = RetryPolicy(
-    maxRetries = 3,
-    retryDelayMillis = 2000L,
-    exponentialBackoff = true
+// Usage with predefined type
+AdHelper.showNativeAd(
+    context = this,
+    container = nativeContainer,
+    nativeType = NativeType.MEDIUM,
+    // ... other parameters
 )
 
-val config = AdsConfiguration(
-    isTestMode = BuildConfig.DEBUG,
-    adUnits = adUnits,
-    enableAutoReload = true,
-    retryPolicy = retryPolicy,
-    enableConsentForm = false
+// Usage with custom layout
+AdHelper.showNativeAd(
+    context = this,
+    container = nativeContainer,
+    nativeType = NativeType.CUSTOM,
+    customNativeLayoutResId = R.layout.custom_native_ad,
+    customShimmerLayoutResId = R.layout.custom_shimmer,
+    // ... other parameters
 )
-```
-
-------
-
-## 📱 Layout Examples
-### Banner Ad Layout
-
-```kotlin
-<LinearLayout
-    android:id="@+id/banner_container"
-    android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:gravity="center"
-    android:orientation="vertical"
-    android:minHeight="50dp"/>
-```
-
---------
-
-
-## Native Ad Layout
-Create `layout/native_ad_layout.xml`:
-
-```kotlin
-<com.google.android.gms.ads.nativead.NativeAdView
-    android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:background="@color/card_background">
-    
-    <ImageView
-        android:id="@+id/ad_app_icon"
-        android:layout_width="48dp"
-        android:layout_height="48dp"/>
-    
-    <TextView
-        android:id="@+id/ad_headline"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:textSize="16sp"
-        android:textStyle="bold"/>
-    
-    <TextView
-        android:id="@+id/ad_body"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:textSize="14sp"/>
-        
-    <Button
-        android:id="@+id/ad_call_to_action"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"/>
-</com.google.android.gms.ads.nativead.NativeAdView>
-```
-
------ 
-
-## 🔧 Advanced Usage
+🔧 Advanced Usage
 Manual Ad Management
+kotlin
+// Get ad instance directly from AdsManager
+val bannerAd = AdsManager.getBannerAd(context, AdSize.BANNER)
+val interstitialAd = AdsManager.getInterstitialAd(context)
+val nativeAd = AdsManager.getNativeAd(context)
 
-```kotlin
-// Get ad instance directly
-val bannerAd = AdsManager.getBannerAd(this, AdSize.BANNER)
+// Check if AdsManager is initialized
+if (AdsManager.isInitialized()) {
+    // Ads are ready to use
+}
 
-// Set custom listener
-bannerAd.setListener(object : AdListener {
-    override fun onAdLoaded() {
-        // Handle ad loaded
-    }
+// Wait for initialization (coroutine)
+scope.launch {
+    AdsManager.awaitInitialization()
+    // Now safe to load ads
+}
+App Open Ad Configuration
+kotlin
+// In your AdsConfig:
+AdsConfig(
+    appOpenAdEnabled = true,
+    showAppOpenOnFirstLaunch = false, // Don't show on first launch
+    minBackgroundTimeForAppOpen = 2000L, // 2 seconds minimum
     
-    override fun onAdFailedToLoad(error: String) {
-        // Handle error
+    // Exclude specific activities from showing app open ads
+    shouldShowAppOpenAd = { activity ->
+        activity?.let {
+            when (activity) {
+                SplashActivity::class -> false
+                PaymentActivity::class -> false
+                else -> true
+            }
+        } ?: true
     }
-    
-    // ... other callbacks
-})
-
-// Manual lifecycle control
+)
+Activity Lifecycle Management
+kotlin
 override fun onPause() {
     super.onPause()
-    AdHelper.pauseBannerAds()
+    AdHelper.pauseBannerAds() // Pause banner ads
 }
 
 override fun onResume() {
     super.onResume()
-    AdHelper.resumeBannerAds()
+    AdHelper.resumeBannerAds() // Resume banner ads
+    // Optional: Show app open ad on resume
+    AdsManager.showAppOpenAdOnResume(this)
 }
-```
 
-------
-
-## Preloading Ads
-Ads are automatically preloaded during initialisation. To manually preload:
-
-```kotlin
-// Preload interstitial ad
-AdsManager.getInterstitialAd(applicationContext)
-
-// Preload native ad  
-AdsManager.getNativeAd(applicationContext)
-```
------
-
-## 🐛 Troubleshooting
-### Common Issues
-- "Ad size and ad unit ID must be set before loadAd is called"
-
-    - Ensure you're using test ad IDs in debug mode
-
-    - Verify AdMob initialization completed successfully
-
-- "No ad config" or "AdManager not initialized"
-
-    - Make sure AdsManager.initialize() is called in Application.onCreate()
-
-- Ads not showing in production
-
-    - Verify your ad unit IDs are correct
-
-    - Check if your AdMob account is active
-
-    - Ensure ads are enabled for your app in AdMob console
-
------
-
-## Enable Debug Logging
-```kotlin
-// Add in Application.onCreate()
-if (BuildConfig.DEBUG) {
-    MobileAds.setRequestConfiguration(
-        RequestConfiguration.Builder()
-            .setTestDeviceIds(listOf(AdRequest.DEVICE_ID_EMULATOR))
-            .build()
-    )
+override fun onDestroy() {
+    super.onDestroy()
+    // Note: Don't destroy all ads in activity destroy
+    // They're managed globally by AdsManager
 }
-```
-------
+Debug Information
+kotlin
+// Show debug info dialog
+private fun showDebugInfo() {
+    // Built-in method in MainActivity example
+    // Shows: Initialization status, test mode, ad sizes, SDK version
+}
+📱 Layout Examples
+Activity Layout with Ad Containers
+xml
+<ScrollView
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+    
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+        
+        <!-- Banner Ad Container -->
+        <FrameLayout
+            android:id="@+id/bannerAdContainer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="50dp"
+            android:background="@color/surface"
+            android:padding="8dp"/>
+        
+        <!-- Native Ad Container -->
+        <FrameLayout
+            android:id="@+id/nativeAdContainer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="120dp"
+            android:background="@color/surface"
+            android:padding="16dp"/>
+        
+        <!-- Ad Controls -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp">
+            
+            <Button
+                android:id="@+id/btnLoadBanner"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Load Banner Ad"/>
+            
+            <Button
+                android:id="@+id/btnShowInterstitial"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Show Interstitial Ad"/>
+            
+            <!-- ... more buttons -->
+        </LinearLayout>
+    </LinearLayout>
+</ScrollView>
+Custom Native Ad Layout
+Create res/layout/custom_native_ad.xml:
 
-## 📊 Best Practices
+xml
+<com.google.android.gms.ads.nativead.NativeAdView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/rounded_card"
+    android:padding="16dp">
+    
+    <!-- Header -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+        
+        <ImageView
+            android:id="@+id/ad_app_icon"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:scaleType="fitCenter"/>
+        
+        <TextView
+            android:id="@+id/ad_headline"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="12dp"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:textColor="@color/text_primary"/>
+        
+        <TextView
+            android:id="@+id/ad_advertiser"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="12sp"
+            android:textColor="@color/text_secondary"/>
+    </LinearLayout>
+    
+    <!-- Body -->
+    <TextView
+        android:id="@+id/ad_body"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:textSize="14sp"
+        android:textColor="@color/text_primary"/>
+    
+    <!-- Media Content -->
+    <androidx.appcompat.widget.AppCompatImageView
+        android:id="@+id/ad_media"
+        android:layout_width="match_parent"
+        android:layout_height="200dp"
+        android:layout_marginTop="12dp"
+        android:scaleType="fitCenter"
+        android:adjustViewBounds="true"/>
+    
+    <!-- Call to Action -->
+    <Button
+        android:id="@+id/ad_call_to_action"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:paddingHorizontal="24dp"
+        android:paddingVertical="8dp"
+        android:textSize="14sp"
+        style="@style/Widget.Material3.Button.OutlinedButton"/>
+        
+</com.google.android.gms.ads.nativead.NativeAdView>
+🐛 Troubleshooting
+Common Issues
+"AdsManager not initialized yet"
 
-1) Test Ads in Debug: Always use test ad IDs during development
+Ensure AdsManager.initialize() is called in Application.onCreate()
 
-2) Handle Failures Gracefully: Ads may fail to load - handle errors silently
+Wait for initialization using AdsManager.awaitInitialization() in coroutines
 
-3) Respect User Experience: Don't show ads too frequently
+Test ads not showing
 
-4) Lifecycle Management: Always clean up ads in onDestroy()
+Verify isTestMode = BuildConfig.DEBUG is set
 
-5) Network Awareness: Check network before loading ads
+Check that test device IDs are configured in AdMob console
 
------
+App Open ads not triggering
 
-## 📝 Proguard Rules
-### If using ProGuard, add these rules:
+Ensure appOpenAdEnabled = true
 
-```proguard
+Check minimum background time (default 2 seconds)
+
+Verify activity is not excluded in shouldShowAppOpenAd callback
+
+Native ad layout issues
+
+Ensure all required view IDs are present in custom layout
+
+Check that container has appropriate height
+
+Enable Debug Logging
+kotlin
+// In AdsConfig:
+AdsConfig(
+    isTestMode = BuildConfig.DEBUG,
+    enableDebugLogging = BuildConfig.DEBUG, // Enable verbose logging
+    // ... other config
+)
+📊 Best Practices
+Test Mode: Always use test ad IDs during development (BuildConfig.DEBUG)
+
+Error Handling: Gracefully handle ad failures without disrupting user experience
+
+Frequency Capping: Don't show ads too frequently; respect user experience
+
+Lifecycle Management: Use pauseBannerAds() and resumeBannerAds() appropriately
+
+Memory Management: Clear ad references in onDestroy() of Application, not Activity
+
+App Open Ads: Exclude sensitive activities (login, payment, etc.)
+
+Native Ads: Use appropriate ad types for different screen sizes
+
+📝 Proguard Rules
+If using ProGuard, add these rules to your proguard-rules.pro:
+
+proguard
 # Google AdMob
 -keep class com.google.android.gms.ads.** { *; }
 -keep class com.google.ads.** { *; }
 
-# Keep AdsManager classes
+# AdsManager Library
 -keep class com.theankitparmar.adsmanager.** { *; }
-```
+-keep interface com.theankitparmar.adsmanager.** { *; }
 
------
-
-## 🤝 Contributing
-
-## Contributions are welcome! Please feel free to submit a Pull Request.
+# Shimmer
+-keep class com.facebook.shimmer.** { *; }
+🤝 Contributing
+Contributions are welcome! Please feel free to submit a Pull Request.
 
 Fork the repository
 
-1. Create your feature branch `(git checkout -b feature/amazing-feature)`
+Create your feature branch (git checkout -b feature/amazing-feature)
 
-2. Commit your changes `(git commit -m 'Add some amazing feature')`
+Commit your changes (git commit -m 'Add some amazing feature')
 
-3. Push to the branch `(git push origin feature/amazing-feature)`
+Push to the branch (git push origin feature/amazing-feature)
 
-4. Open a Pull Request
-
--------
+Open a Pull Request
 
 📄 License
-
-```text
+text
 MIT License
 
-Copyright (c) 2024 Your Name
+Copyright (c) 2024 Ankit Parmar
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including, without limitation, the rights
+in the Software without restriction, including without limitation the rights
 to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 copies of the Software, and to permit persons to whom the Software is
 furnished to do so, subject to the following conditions:
@@ -443,21 +541,43 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+🙏 Acknowledgments
+Google AdMob for the ad SDK
 
-```
+Facebook for Shimmer library
 
-------
+Contributors and testers
 
-## 🙏 Acknowledgments
-### Google AdMob for the ad SDK
+Open source community
 
-- Contributors and testers
+📞 Support
+📧 Email: codewithankit056@gmail.com
 
-- Open source community
+🐛 Issue Tracker
 
-## 📞 Support
-- 📧 Email: [codewithankit056@gmail.com]
+📖 Documentation Wiki
 
-- 🐛 Issue Tracker
+🔄 Changelog
+Version 2.0.0
+Complete Rewrite: Modern Kotlin coroutine-based architecture
 
-- 📖 Documentation Wiki
+Smart App Open Ads: Automatic background detection with configurable timing
+
+Multiple Native Types: Pre-built layouts for different use cases
+
+Improved API: Simplified AdHelper with cleaner method signatures
+
+Better Lifecycle: Automatic ad pause/resume with edge cases handled
+
+Debug Tools: Built-in debug information dialog
+
+Edge-to-Edge: Modern UI support with proper insets handling
+
+Version 1.0.0
+Initial release with basic ad support
+
+Banner, Interstitial, Native, and App Open ads
+
+Basic lifecycle management
+
+Test mode support
