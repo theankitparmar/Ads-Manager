@@ -289,9 +289,6 @@ object AdHelper {
     }
 
     /**
-     * Smart Native Ad with size support
-     */
-    /**
      * Smart Native Ad with proper height calculation
      */
     fun showNativeAd(
@@ -310,14 +307,17 @@ object AdHelper {
         val nativeAd = when (nativeType) {
             NativeType.CUSTOM -> {
                 if (customNativeLayoutResId == null) {
-                    throw IllegalArgumentException("customNativeLayoutResId must be provided for CUSTOM type")
+                    // Show error and use default instead of throwing
+                    Log.e(TAG, "customNativeLayoutResId must be provided for CUSTOM type, using MEDIUM instead")
+                    AdsManager.getNativeAdWithType(context, NativeType.MEDIUM)
+                } else {
+                    AdsManager.getNativeAdWithCustomLayout(
+                        context = context,
+                        nativeType = nativeType,
+                        customNativeLayoutResId = customNativeLayoutResId,
+                        customShimmerLayoutResId = customShimmerLayoutResId
+                    )
                 }
-                AdsManager.getNativeAdWithCustomLayout(
-                    context = context,
-                    nativeType = nativeType,
-                    customNativeLayoutResId = customNativeLayoutResId,
-                    customShimmerLayoutResId = customShimmerLayoutResId
-                )
             }
             else -> {
                 AdsManager.getNativeAdWithType(context, nativeType)
@@ -328,7 +328,6 @@ object AdHelper {
         nativeAds[key] = nativeAd
 
         // Store original container state
-        // Store a complete copy of layout params by creating a new instance
         val originalContainerParams = container.layoutParams?.let {
             ViewGroup.LayoutParams(it).apply {
                 // Copy all properties
@@ -337,7 +336,7 @@ object AdHelper {
             }
         }
 
-        // Use NativeAd's getExpectedHeight() method - THIS IS KEY
+        // Use NativeAd's getExpectedHeight() method
         val expectedHeight = nativeAd.getExpectedHeight(context)
 
         Log.d(TAG, "Native ad type: $nativeType, Expected height: $expectedHeight px")
@@ -359,7 +358,7 @@ object AdHelper {
             showNativeShimmer(
                 context = context,
                 container = container,
-                nativeType = nativeType,
+                nativeAd = nativeAd,
                 expectedHeight = expectedHeight,
                 customShimmerLayoutResId = customShimmerLayoutResId
             )
@@ -375,7 +374,7 @@ object AdHelper {
 
                 Handler(Looper.getMainLooper()).post {
                     // Hide shimmer
-                    hideNativeShimmer(container, nativeType)
+                    hideNativeShimmer(container, nativeAd)
 
                     // Inflate and display the native ad
                     val adView = nativeAd.inflateNativeAdView(container)
@@ -402,7 +401,7 @@ object AdHelper {
                 Log.e(TAG, "Native ad ($nativeType) failed to load. Error: $error")
                 Handler(Looper.getMainLooper()).post {
                     // Hide shimmer
-                    hideNativeShimmer(container, nativeType)
+                    hideNativeShimmer(container, nativeAd)
 
                     // Restore original container layout params
                     originalContainerParams?.let {
@@ -433,14 +432,18 @@ object AdHelper {
     /**
      * Show native shimmer based on type
      */
+    /**
+     * Show native shimmer based on type
+     */
     private fun showNativeShimmer(
         context: Context,
         container: ViewGroup,
-        nativeType: NativeType,
+        nativeAd: NativeAd,
         expectedHeight: Int,
         customShimmerLayoutResId: Int? = null
     ) {
-        hideNativeShimmer(container, nativeType)
+        val nativeType = nativeAd.getNativeType()
+        hideNativeShimmer(container, nativeAd)
 
         when (nativeType) {
             NativeType.CUSTOM -> {
@@ -468,8 +471,7 @@ object AdHelper {
             }
             else -> {
                 // For predefined types, get shimmer layout from NativeAd
-                val shimmerLayoutResId = nativeAds.values.find { it.getNativeType() == nativeType }
-                    ?.getShimmerLayoutResId()
+                val shimmerLayoutResId = nativeAd.getShimmerLayoutResId()
 
                 shimmerLayoutResId?.let { layoutId ->
                     try {
@@ -500,7 +502,7 @@ object AdHelper {
     /**
      * Hide native shimmer
      */
-    private fun hideNativeShimmer(container: ViewGroup, nativeType: NativeType) {
+    private fun hideNativeShimmer(container: ViewGroup, nativeAd: NativeAd) {
         // Remove custom shimmer view if exists
         customShimmerViews[container.id]?.let { view ->
             container.removeView(view)

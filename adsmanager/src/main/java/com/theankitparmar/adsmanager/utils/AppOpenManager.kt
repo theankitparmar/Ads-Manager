@@ -28,7 +28,7 @@ object AppOpenManager : Application.ActivityLifecycleCallbacks, LifecycleObserve
     private lateinit var application: Application
     private var currentActivity: Activity? = null
     private var isShowingAd = AtomicBoolean(false)
-    private var wasAppInBackground = true // Start as true so first launch doesn't show ad
+    private var wasAppInBackground = false // Start as false - app wasn't in background on first launch
     private var backgroundTime: Long = 0
     private var lastAdShownTime: Long = 0
     private val handler = Handler(Looper.getMainLooper())
@@ -40,8 +40,9 @@ object AppOpenManager : Application.ActivityLifecycleCallbacks, LifecycleObserve
     private var enabled = true
     private var debugMode = false
     private var showOnFirstLaunch = false // Don't show on first app launch by default
-    private var cooldownPeriod = 0L // Cooldown between ads
-    private var isAppLaunching = true // Track if app is launching for the first time
+    private var cooldownPeriod = 30000L // 30 seconds cooldown by default
+    private var minBackgroundTime = MIN_BACKGROUND_TIME // Configurable minimum background time
+    private var appStartTime: Long = 0 // Track when app started
 
     /**
      * Initialize the App Open Manager
@@ -53,6 +54,7 @@ object AppOpenManager : Application.ActivityLifecycleCallbacks, LifecycleObserve
         }
 
         this.application = application
+        appStartTime = System.currentTimeMillis()
 
         // Register for activity lifecycle callbacks
         application.registerActivityLifecycleCallbacks(this)
@@ -62,10 +64,12 @@ object AppOpenManager : Application.ActivityLifecycleCallbacks, LifecycleObserve
 
         // Preload first ad
         handler.postDelayed({
-            preloadNextAd()
-        }, 1000)
+            if (AdsManager.isInitialized()) {
+                preloadNextAd()
+            }
+        }, 3000) // Wait 3 seconds to ensure AdsManager is initialized
 
-        Log.d(TAG, "AppOpenManager initialized")
+        Log.d(TAG, "AppOpenManager initialized. Show on first launch: $showOnFirstLaunch")
     }
 
     /**
@@ -117,6 +121,13 @@ object AppOpenManager : Application.ActivityLifecycleCallbacks, LifecycleObserve
 
         // Clear any pending ad show calls
         handler.removeCallbacksAndMessages(null)
+
+        // Preload next ad while in background for faster showing next time
+        handler.postDelayed({
+            if (AdsManager.isInitialized()) {
+                preloadNextAd()
+            }
+        }, 1000)
     }
 
     /**
@@ -126,21 +137,19 @@ object AppOpenManager : Application.ActivityLifecycleCallbacks, LifecycleObserve
     fun onAppForegrounded() {
         if (debugMode) Log.d(TAG, "App came to foreground")
 
-        // Don't show ad on first launch unless configured to
-        if (isAppLaunching && !showOnFirstLaunch) {
-            if (debugMode) Log.d(TAG, "First launch - skipping App Open Ad")
-            isAppLaunching = false
-            return
-        }
-
-        // Reset first launch flag after first foreground
-        isAppLaunching = false
-
-        // Only show ad if app was in background for sufficient time
+        // Check if app was in background
         if (wasAppInBackground) {
             val timeInBackground = System.currentTimeMillis() - backgroundTime
+            val timeSinceAppStart = System.currentTimeMillis() - appStartTime
 
-            if (timeInBackground >= MIN_BACKGROUND_TIME) {
+            // CRITICAL: Skip if this is the first launch (app started less than 5 seconds ago)
+            if (timeSinceAppStart < 5000 && !showOnFirstLaunch) {
+                if (debugMode) Log.d(TAG, "First launch detected (${timeSinceAppStart}ms since start) - skipping ad")
+                wasAppInBackground = false
+                return
+            }
+
+            if (timeInBackground >= minBackgroundTime) {
                 if (debugMode) Log.d(TAG, "App was in background for ${timeInBackground}ms - showing ad")
 
                 // Wait a bit before showing ad to ensure activity is ready
@@ -284,9 +293,8 @@ object AppOpenManager : Application.ActivityLifecycleCallbacks, LifecycleObserve
      * Set minimum background time before showing ad
      */
     fun setMinBackgroundTime(minTime: Long) {
+        minBackgroundTime = minTime
         if (debugMode) Log.d(TAG, "Minimum background time set to ${minTime}ms")
-        // This would need to be stored and used in onAppForegrounded
-        // You need to update the constant or create a variable for it
     }
 
     /**

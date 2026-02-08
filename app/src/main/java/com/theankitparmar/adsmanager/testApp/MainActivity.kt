@@ -3,45 +3,141 @@ package com.theankitparmar.adsmanager.testApp
 
 import android.os.Bundle
 import android.util.Log
+import android.view.View
+import android.widget.AdapterView
+import android.widget.ArrayAdapter
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
-import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
-import com.google.android.gms.ads.AdSize
+import com.google.android.material.snackbar.Snackbar
 import com.theankitparmar.adsmanager.BuildConfig
 import com.theankitparmar.adsmanager.ads.native.NativeType
 import com.theankitparmar.adsmanager.core.AdsManager
+import com.theankitparmar.adsmanager.testApp.databinding.ActivityMainBinding
 import com.theankitparmar.adsmanager.utils.AdHelper
+import com.theankitparmar.adsmanager.utils.BaseAdsActivity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import java.text.NumberFormat
-import java.util.*
 
-class MainActivity : AppCompatActivity() {
+class MainActivity : BaseAdsActivity() {
 
+    private lateinit var binding: ActivityMainBinding
     private val scope = CoroutineScope(Dispatchers.Main)
-    private var isAppOpenShown = false
-    private var totalRevenue: Long = 0
     private var isLoadingAds = false
+
+    // Current selections
+    private var currentBannerSize = AdHelper.BannerAdSize.STANDARD
+    private var currentNativeType = NativeType.MEDIUM
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        setContentView(R.layout.activity_main)
 
-        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
+        // Initialize View Binding
+        binding = ActivityMainBinding.inflate(layoutInflater)
+        setContentView(binding.root)
+
+        setupEdgeToEdge()
+        setupUI()
+        setupSpinners()
+        setupButtons()
+        initializeAds()
+    }
+
+    private fun setupEdgeToEdge() {
+        ViewCompat.setOnApplyWindowInsetsListener(binding.mainScrollView) { v, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
             insets
         }
+    }
 
-        setupUI()
-        setupReloadButtons()
+    private fun setupUI() {
+        // Update status text
+        updateStatus("Initializing Ads Manager...")
+        binding.tvTestMode.text = "Test Mode: ${BuildConfig.DEBUG}"
 
-        // Initialize ads after a short delay to ensure AdsManager is ready
-        initializeAds()
+        // Set banner and native type display
+        binding.tvBannerSize.text = currentBannerSize.name
+        binding.tvNativeType.text = currentNativeType.name
+    }
+
+    private fun setupSpinners() {
+        // Banner Size Spinner
+        val bannerSizes = AdHelper.BannerAdSize.values().map { it.name }
+        val bannerAdapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, bannerSizes)
+        bannerAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        binding.spinnerBannerSize.adapter = bannerAdapter
+
+        binding.spinnerBannerSize.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                currentBannerSize = AdHelper.BannerAdSize.values()[position]
+                binding.tvBannerSize.text = currentBannerSize.name
+                updateStatus("Selected Banner Size: ${currentBannerSize.name}")
+                showSnackbar("Banner size set to ${currentBannerSize.name}")
+            }
+            override fun onNothingSelected(parent: AdapterView<*>?) {}
+        }
+
+        // Native Type Spinner
+        val nativeTypes = NativeType.values().map { it.name }
+        val nativeAdapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, nativeTypes)
+        nativeAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        binding.spinnerNativeType.adapter = nativeAdapter
+
+        binding.spinnerNativeType.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                currentNativeType = NativeType.values()[position]
+                binding.tvNativeType.text = currentNativeType.name
+                updateStatus("Selected Native Type: ${currentNativeType.name}")
+                showSnackbar("Native type set to ${currentNativeType.name}")
+            }
+            override fun onNothingSelected(parent: AdapterView<*>?) {}
+        }
+    }
+
+    private fun setupButtons() {
+        // Quick Action Buttons
+        binding.btnClearAdsQuick.setOnClickListener {
+            clearAllAds()
+        }
+
+        // Banner Ad Button
+        binding.btnLoadBanner.setOnClickListener {
+            loadBannerAd()
+        }
+
+        // Native Ad Button
+        binding.btnLoadNative.setOnClickListener {
+            loadNativeAd()
+        }
+
+        // Interstitial Ad Button
+        binding.btnShowInterstitial.setOnClickListener {
+            showInterstitialAd()
+        }
+
+        // App Open Ad Button
+        binding.btnTestAppOpen.setOnClickListener {
+            testAppOpenAd()
+        }
+
+        // Clear All Ads Button
+        binding.btnClearAds.setOnClickListener {
+            clearAllAds()
+        }
+
+        // Refresh Ads Button
+        binding.btnRefreshAds.setOnClickListener {
+            refreshAllAds()
+        }
+
+        // Debug Info Button
+        binding.btnDebugInfo.setOnClickListener {
+            showDebugInfo()
+        }
     }
 
     private fun initializeAds() {
@@ -58,14 +154,9 @@ class MainActivity : AppCompatActivity() {
                 // Now that AdsManager is initialized, load all ads
                 loadAllAds()
 
-                // Show App Open Ad on first launch
-                if (!isAppOpenShown) {
-                    showAppOpenAd()
-                }
-
             } catch (e: Exception) {
                 updateStatus("Failed to initialize ads: ${e.message}")
-                Toast.makeText(this@MainActivity, "Ad initialization failed: ${e.message}", Toast.LENGTH_LONG).show()
+                showSnackbar("Ad initialization failed: ${e.message}", true)
                 Log.e("MainActivity", "Ad initialization error", e)
             } finally {
                 isLoadingAds = false
@@ -73,180 +164,219 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun setupUI() {
-        // Update status text
-        val statusText = findViewById<android.widget.TextView>(R.id.tv_ad_status)
-        statusText.text = "Initializing Ads Manager... Test Mode: ${BuildConfig.DEBUG}"
-    }
-
     private fun loadAllAds() {
         updateStatus("Loading ads...")
 
-        if (!AdsManager.isInitialized()) {
-            updateStatus("AdsManager not initialized yet")
-            return
+        scope.launch {
+            try {
+                // Wait for AdsManager to be fully initialized
+                AdsManager.awaitInitialization()
+
+                if (!AdsManager.isInitialized()) {
+                    updateStatus("AdsManager not initialized yet")
+                    return@launch
+                }
+
+                // Don't auto-load ads on start, let user click buttons
+                updateStatus("Ready. Select options and click buttons to test ads.")
+                showSnackbar("Ads Manager is ready!")
+
+            } catch (e: Exception) {
+                updateStatus("Failed to initialize ads: ${e.message}")
+                Log.e("MainActivity", "Ad initialization error", e)
+            }
         }
-
-        loadBannerAd()
-        loadNativeAd()
-        setupInterstitialButton()
-
-        updateStatus("Ads Manager initialized successfully")
     }
 
     private fun loadBannerAd() {
-        val bannerContainer = findViewById<android.widget.LinearLayout>(R.id.banner_container)
-
         try {
+            binding.bannerAdContainer.removeAllViews()
+
             AdHelper.showBannerAd(
                 context = this,
-                container = bannerContainer,
+                container = binding.bannerAdContainer,
+                bannerAdSize = currentBannerSize,
                 showShimmer = true,
-                bannerAdSize = AdHelper.BannerAdSize.LARGE,
                 onAdLoaded = {
                     runOnUiThread {
-                        Toast.makeText(this, "Banner ad loaded successfully", Toast.LENGTH_SHORT).show()
-                        updateStatus("Banner ad loaded")
+                        showSnackbar("Banner ad (${currentBannerSize.name}) loaded successfully")
+                        updateStatus("Banner ad (${currentBannerSize.name}) loaded")
                     }
                 },
                 onAdFailed = { error ->
                     runOnUiThread {
-                        Toast.makeText(this, "Banner ad failed: $error", Toast.LENGTH_SHORT).show()
+                        showSnackbar("Banner ad failed: $error", true)
                         updateStatus("Banner ad failed: $error")
                     }
                 }
             )
         } catch (e: Exception) {
             updateStatus("Banner ad error: ${e.message}")
+            showSnackbar("Banner ad error: ${e.message}", true)
             Log.e("MainActivity", "Banner ad error", e)
         }
     }
 
     private fun loadNativeAd() {
-        val nativeContainer = findViewById<android.widget.LinearLayout>(R.id.native_container)
-
         try {
+            binding.nativeAdContainer.removeAllViews()
+
             AdHelper.showNativeAd(
                 context = this,
-                nativeType = NativeType.LARGE,
-                container = nativeContainer,
+                container = binding.nativeAdContainer,
+                nativeType = currentNativeType,
                 showShimmer = true,
                 onAdLoaded = {
                     runOnUiThread {
-                        Toast.makeText(this, "Native ad loaded successfully", Toast.LENGTH_SHORT).show()
-                        updateStatus("Native ad loaded")
+                        showSnackbar("Native ad (${currentNativeType.name}) loaded successfully")
+                        updateStatus("Native ad (${currentNativeType.name}) loaded")
                     }
                 },
                 onAdFailed = { error ->
                     runOnUiThread {
-                        Toast.makeText(this, "Native ad failed: $error", Toast.LENGTH_SHORT).show()
+                        showSnackbar("Native ad failed: $error", true)
                         updateStatus("Native ad failed: $error")
-
-                        // Show a fallback message
-                        val textView = android.widget.TextView(this).apply {
-                            text = "Native ad failed to load. Error: $error"
-                            setTextColor(android.graphics.Color.RED)
-                            gravity = android.view.Gravity.CENTER
-                            setPadding(16, 16, 16, 16)
-                        }
-                        nativeContainer.removeAllViews()
-                        nativeContainer.addView(textView)
                     }
                 }
             )
         } catch (e: Exception) {
             updateStatus("Native ad error: ${e.message}")
+            showSnackbar("Native ad error: ${e.message}", true)
             Log.e("MainActivity", "Native ad error", e)
         }
     }
 
-    private fun setupInterstitialButton() {
-        val interstitialButton = findViewById<android.widget.Button>(R.id.show_interstitial)
-
-        interstitialButton.setOnClickListener {
-            try {
-                AdHelper.showInterstitialAd(
-                    activity = this,
-                    showLoadingDialog = false,
-                    onAdDismissed = {
-                        runOnUiThread {
-                            Toast.makeText(this, "Interstitial ad dismissed", Toast.LENGTH_SHORT).show()
-                            updateStatus("Interstitial dismissed")
-                        }
-                    },
-                    onAdFailed = { error ->
-                        runOnUiThread {
-                            Toast.makeText(this, "Interstitial failed: $error", Toast.LENGTH_SHORT).show()
-                            updateStatus("Interstitial failed: $error")
-                        }
+    private fun showInterstitialAd() {
+        try {
+            AdHelper.showInterstitialAd(
+                activity = this,
+                showLoadingDialog = false,
+                onAdDismissed = {
+                    runOnUiThread {
+                        showSnackbar("Interstitial ad dismissed")
+                        updateStatus("Interstitial dismissed")
                     }
-                )
-            } catch (e: Exception) {
-                Toast.makeText(this, "Error showing interstitial: ${e.message}", Toast.LENGTH_SHORT).show()
-                updateStatus("Interstitial error: ${e.message}")
-            }
+                },
+                onAdFailed = { error ->
+                    runOnUiThread {
+                        showSnackbar("Interstitial failed: $error", true)
+                        updateStatus("Interstitial failed: $error")
+                    }
+                }
+            )
+        } catch (e: Exception) {
+            showSnackbar("Error showing interstitial: ${e.message}", true)
+            updateStatus("Interstitial error: ${e.message}")
         }
     }
 
-    private fun setupReloadButtons() {
-        val reloadBannerButton = findViewById<android.widget.Button>(R.id.btn_reload_banner)
-        val reloadNativeButton = findViewById<android.widget.Button>(R.id.btn_reload_native)
-
-        reloadBannerButton.setOnClickListener {
-            val bannerContainer = findViewById<android.widget.LinearLayout>(R.id.banner_container)
-            bannerContainer.removeAllViews()
-            loadBannerAd()
-            Toast.makeText(this, "Reloading banner ad...", Toast.LENGTH_SHORT).show()
-        }
-
-        reloadNativeButton.setOnClickListener {
-            val nativeContainer = findViewById<android.widget.LinearLayout>(R.id.native_container)
-            nativeContainer.removeAllViews()
-            loadNativeAd()
-            Toast.makeText(this, "Reloading native ad...", Toast.LENGTH_SHORT).show()
-        }
-    }
-
-    private fun showAppOpenAd() {
+    private fun testAppOpenAd() {
         try {
             val wasShown = AdHelper.showAppOpenAd(
                 activity = this,
                 showLoadingDialog = false,
                 onAdDismissed = {
                     runOnUiThread {
-                        Toast.makeText(this, "App Open ad dismissed", Toast.LENGTH_SHORT).show()
+                        showSnackbar("App Open ad dismissed")
                         updateStatus("App Open dismissed")
-                        isAppOpenShown = true
                     }
                 },
                 onAdFailed = { error ->
                     runOnUiThread {
-                        Toast.makeText(this, "App Open failed: $error", Toast.LENGTH_SHORT).show()
+                        showSnackbar("App Open failed: $error", true)
                         updateStatus("App Open failed: $error")
                     }
                 }
             )
 
-            if (!wasShown) {
-                Log.d("MainActivity", "App Open ad not ready, loading in background")
+            if (wasShown) {
+                updateStatus("App Open ad shown")
+            } else {
+                updateStatus("App Open ad not ready, loading...")
             }
         } catch (e: Exception) {
             Log.e("MainActivity", "App Open ad error", e)
+            updateStatus("App Open error: ${e.message}")
         }
+    }
+
+    private fun clearAllAds() {
+        binding.bannerAdContainer.removeAllViews()
+        binding.nativeAdContainer.removeAllViews()
+
+        // Add back the placeholder text
+        val bannerPlaceholder = android.widget.TextView(this).apply {
+            text = "👆 Tap 'Load Banner Ad' to display"
+            setTextColor(resources.getColor(R.color.tertiary_text))
+            gravity = android.view.Gravity.CENTER
+            setPadding(16, 16, 16, 16)
+        }
+        binding.bannerAdContainer.addView(bannerPlaceholder)
+
+        val nativePlaceholder = android.widget.TextView(this).apply {
+            text = "👆 Tap 'Load Native Ad' to display"
+            setTextColor(resources.getColor(R.color.tertiary_text))
+            gravity = android.view.Gravity.CENTER
+            setPadding(16, 16, 16, 16)
+        }
+        binding.nativeAdContainer.addView(nativePlaceholder)
+
+        // Also clear the ad helper's internal references
+        AdHelper.destroyAds()
+
+        showSnackbar("All ads cleared successfully")
+        updateStatus("All ads cleared")
+    }
+
+    private fun refreshAllAds() {
+        updateStatus("Refreshing all ads...")
+        showSnackbar("Refreshing ads...")
+
+        // Clear existing ads
+        clearAllAds()
+
+        // Re-initialize ads
+        initializeAds()
+    }
+
+    private fun showDebugInfo() {
+        val debugInfo = """
+            Ads Manager Debug Info:
+            • Initialized: ${AdsManager.isInitialized()}
+            • Test Mode: ${BuildConfig.DEBUG}
+            • Banner Size: ${currentBannerSize.name}
+            • Native Type: ${currentNativeType.name}
+            • SDK Version: ${com.google.android.gms.ads.MobileAds.getVersion()}
+        """.trimIndent()
+
+        android.app.AlertDialog.Builder(this)
+            .setTitle("Debug Information")
+            .setMessage(debugInfo)
+            .setPositiveButton("OK", null)
+            .setNeutralButton("Copy") { _, _ ->
+                val clipboard = getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                val clip = android.content.ClipData.newPlainText("Debug Info", debugInfo)
+                clipboard.setPrimaryClip(clip)
+                showSnackbar("Debug info copied to clipboard")
+            }
+            .show()
     }
 
     private fun updateStatus(message: String) {
         runOnUiThread {
-            val statusText = findViewById<android.widget.TextView>(R.id.tv_ad_status)
-            statusText.text = "Status: $message"
+            binding.tvAdStatus.text = message
+            Log.d("MainActivity", message)
         }
     }
 
-    private fun formatRevenue(valueMicros: Long): String {
-        val valueInDollars = valueMicros / 1_000_000.0
-        val formatter = NumberFormat.getCurrencyInstance(Locale.US)
-        formatter.maximumFractionDigits = 6
-        return formatter.format(valueInDollars)
+    private fun showSnackbar(message: String, isError: Boolean = false) {
+        runOnUiThread {
+            val snackbar = Snackbar.make(binding.root, message, Snackbar.LENGTH_SHORT)
+            if (isError) {
+                snackbar.setBackgroundTint(resources.getColor(R.color.red_500))
+            }
+            snackbar.show()
+        }
     }
 
     override fun onPause() {
@@ -261,6 +391,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        AdHelper.destroyAds()
+        // Don't destroy all ads on activity destroy since we want to keep them for testing
+        // AdHelper.destroyAds()
     }
 }

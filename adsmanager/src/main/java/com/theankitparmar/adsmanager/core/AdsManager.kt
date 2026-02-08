@@ -19,6 +19,8 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import com.theankitparmar.adsmanager.adInterface.AdsConfiguration
+import com.theankitparmar.adsmanager.core.AdUnits
 
 object AdsManager {
 
@@ -100,14 +102,11 @@ object AdsManager {
         // Set min background time
         AppOpenManager.setMinBackgroundTime(config.minBackgroundTimeForAppOpen)
 
-        // Don't show on first launch if configured
-        if (!config.showAppOpenOnFirstLaunch) {
-            AppOpenManager.setShowOnFirstLaunch(false)
-        }
+        // Set show on first launch based on config
+        AppOpenManager.setShowOnFirstLaunch(config.showAppOpenOnFirstLaunch)
 
-        Log.d(TAG, "✅ AppOpenManager initialized automatically")
+        Log.d(TAG, "✅ AppOpenManager initialized automatically. Show on first launch: ${config.showAppOpenOnFirstLaunch}")
     }
-
     /**
      * Show App Open Ad when app returns from background
      * Call this from Activity's onResume or onCreate

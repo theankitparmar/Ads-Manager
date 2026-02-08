@@ -1,207 +1,684 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout
-    xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.core.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
-    android:id="@+id/main"
-    android:fitsSystemWindows="false"
+    android:id="@+id/mainScrollView"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@android:color/white"
-    tools:context=".MainActivity">
+    android:background="@color/background"
+    android:fillViewport="true">
 
-    <!-- Top App Bar -->
-    <com.google.android.material.appbar.MaterialToolbar
-        android:id="@+id/toolbar"
-        android:layout_width="match_parent"
-        android:layout_height="?attr/actionBarSize"
-        android:background="?attr/colorPrimary"
-        app:layout_constraintTop_toTopOf="parent"
-        app:title="Ads Manager Demo"
-        app:titleTextColor="@android:color/white" />
-
-    <!-- Banner Ad Container -->
     <LinearLayout
-        android:id="@+id/banner_container"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:gravity="center"
-        android:minHeight="60dp"
-        android:background="@android:color/darker_gray"
-        android:padding="8dp"
-        app:layout_constraintTop_toBottomOf="@id/toolbar"
-        tools:backgroundTint="@android:color/holo_blue_light">
+        android:orientation="vertical"
+        android:padding="16dp">
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Banner Ad will appear here"
-            android:textColor="@android:color/white"
-            android:textStyle="italic"
-            android:visibility="visible"
-            tools:visibility="gone" />
-    </LinearLayout>
-
-    <!-- Main Content Area -->
-    <ScrollView
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:padding="16dp"
-        app:layout_constraintTop_toBottomOf="@id/banner_container"
-        app:layout_constraintBottom_toTopOf="@id/native_container">
-
-        <LinearLayout
+        <!-- App Header -->
+        <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:gravity="center">
+            android:layout_marginBottom="20dp"
+            app:cardBackgroundColor="@color/surface"
+            app:cardCornerRadius="12dp"
+            app:cardElevation="8dp"
+            app:strokeColor="@color/dropdown_stroke"
+            app:strokeWidth="1dp">
 
-            <!-- App Title -->
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Ads Manager Demo"
-                android:textSize="24sp"
-                android:textStyle="bold"
-                android:textColor="@android:color/black"
-                android:layout_marginTop="16dp"
-                android:layout_marginBottom="24dp" />
-
-            <!-- Description -->
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="This app demonstrates the reusable Ads Manager library with support for multiple ad types:"
-                android:textSize="16sp"
-                android:textColor="@android:color/darker_gray"
-                android:lineSpacingExtra="4dp"
-                android:layout_marginBottom="32dp" />
-
-            <!-- Features List -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:layout_marginBottom="32dp">
+                android:padding="20dp">
 
-                <TextView
-                    android:layout_width="wrap_content"
+                <!-- App Icon and Title -->
+                <LinearLayout
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="✓ Banner Ads"
-                    android:textSize="14sp"
-                    android:textColor="@android:color/black"
-                    android:layout_marginBottom="8dp" />
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:layout_marginBottom="12dp">
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="✓ Interstitial Ads"
-                    android:textSize="14sp"
-                    android:textColor="@android:color/black"
-                    android:layout_marginBottom="8dp" />
+                    <ImageView
+                        android:layout_width="40dp"
+                        android:layout_height="40dp"
+                        android:layout_marginEnd="12dp"
+                        android:src="@drawable/common_google_signin_btn_icon_dark" />
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="✓ Native Ads"
-                    android:textSize="14sp"
-                    android:textColor="@android:color/black"
-                    android:layout_marginBottom="8dp" />
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
 
-                <TextView
-                    android:layout_width="wrap_content"
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="📱 Ads Manager Pro"
+                            android:textSize="22sp"
+                            android:textStyle="bold"
+                            android:textColor="@color/primary_text" />
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="Advanced Advertising Testing Suite"
+                            android:textSize="14sp"
+                            android:textColor="@color/secondary_text" />
+                    </LinearLayout>
+                </LinearLayout>
+
+                <!-- Status Card -->
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="✓ App Open Ads"
-                    android:textSize="14sp"
-                    android:textColor="@android:color/black" />
+                    android:layout_marginTop="8dp"
+                    app:cardBackgroundColor="@color/status_background"
+                    app:cardCornerRadius="8dp"
+                    app:strokeColor="@color/status_stroke"
+                    app:strokeWidth="1dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="12dp">
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="📊 Status"
+                            android:textSize="14sp"
+                            android:textStyle="bold"
+                            android:textColor="@color/status_text"
+                            android:layout_marginBottom="4dp" />
+
+                        <TextView
+                            android:id="@+id/tv_ad_status"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="Initializing Ads Manager..."
+                            android:textSize="12sp"
+                            android:textColor="@color/status_text"
+                            android:lineSpacingExtra="2dp" />
+
+                        <TextView
+                            android:id="@+id/tv_test_mode"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:text="Test Mode: ${BuildConfig.DEBUG}"
+                            android:textSize="10sp"
+                            android:textColor="@color/tertiary_text"
+                            android:gravity="end" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
             </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
 
-            <!-- Interstitial Button -->
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/show_interstitial"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="Show Interstitial Ad"
-                android:textSize="16sp"
-                android:paddingVertical="16dp"
-                android:layout_marginTop="16dp"
-                android:layout_marginBottom="32dp"
-                app:cornerRadius="8dp"
-                app:backgroundTint="@android:color/holo_blue_dark" />
+        <!-- Quick Actions -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="⚡ Quick Actions"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:textColor="@color/primary_text"
+            android:layout_marginBottom="12dp" />
 
-            <!-- Test Ad Buttons -->
-            <TextView
-                android:layout_width="match_parent"
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="24dp">
+
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:text="Test Ad Actions:"
-                android:textSize="14sp"
-                android:textStyle="bold"
-                android:textColor="@android:color/black"
-                android:layout_marginBottom="16dp" />
+                android:layout_weight="1"
+                android:layout_marginEnd="8dp"
+                app:cardBackgroundColor="@color/card_surface"
+                app:cardCornerRadius="12dp"
+                app:cardElevation="4dp"
+                app:rippleColor="@color/ripple_color">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:gravity="center"
+                    android:padding="16dp">
+
+                    <ImageView
+                        android:layout_width="32dp"
+                        android:layout_height="32dp"
+                        android:layout_marginBottom="8dp"
+                        android:src="@android:drawable/ic_menu_revert"
+                        android:tint="@color/blue_500" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Refresh All"
+                        android:textSize="12sp"
+                        android:textColor="@color/primary_text" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginEnd="8dp"
+                app:cardBackgroundColor="@color/card_surface"
+                app:cardCornerRadius="12dp"
+                app:cardElevation="4dp"
+                app:rippleColor="@color/ripple_color">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:gravity="center"
+                    android:padding="16dp"
+                    android:id="@+id/btn_clear_ads_quick">
+
+                    <ImageView
+                        android:layout_width="32dp"
+                        android:layout_height="32dp"
+                        android:layout_marginBottom="8dp"
+                        android:src="@android:drawable/ic_notification_clear_all"
+                        android:tint="@color/red_500" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Clear All"
+                        android:textSize="12sp"
+                        android:textColor="@color/primary_text" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                app:cardBackgroundColor="@color/card_surface"
+                app:cardCornerRadius="12dp"
+                app:cardElevation="4dp"
+                app:rippleColor="@color/ripple_color">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:gravity="center"
+                    android:padding="16dp">
+
+                    <ImageView
+                        android:layout_width="32dp"
+                        android:layout_height="32dp"
+                        android:layout_marginBottom="8dp"
+                        android:src="@android:drawable/ic_menu_manage"
+                        android:tint="@color/purple_500" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Settings"
+                        android:textSize="12sp"
+                        android:textColor="@color/primary_text" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+        </LinearLayout>
+
+        <!-- Ad Types Section -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="🎯 Ad Types"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:textColor="@color/primary_text"
+            android:layout_marginBottom="12dp" />
+
+        <!-- Banner Ads Card -->
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            app:cardBackgroundColor="@color/card_surface"
+            app:cardCornerRadius="12dp"
+            app:cardElevation="4dp">
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:layout_marginBottom="24dp">
+                android:orientation="vertical"
+                android:padding="20dp">
 
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/btn_reload_banner"
-                    android:layout_width="0dp"
+                <!-- Header -->
+                <LinearLayout
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="Reload Banner"
-                    android:layout_marginEnd="8dp"
-                    app:cornerRadius="4dp"
-                    app:backgroundTint="@android:color/darker_gray" />
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:layout_marginBottom="16dp">
 
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/btn_reload_native"
-                    android:layout_width="0dp"
+                    <ImageView
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:layout_marginEnd="12dp"
+                        android:src="@drawable/googleg_standard_color_18"
+ />
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Banner Ads"
+                        android:textSize="18sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/primary_text" />
+
+                    <TextView
+                        android:id="@+id/tv_banner_size"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="STANDARD"
+                        android:textSize="12sp"
+                        android:textColor="@color/blue_500"
+                        android:background="@drawable/bg_chip_blue"
+                        android:paddingHorizontal="8dp"
+                        android:paddingVertical="4dp" />
+                </LinearLayout>
+
+                <!-- Configuration -->
+                <LinearLayout
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="Reload Native"
-                    app:cornerRadius="4dp"
-                    app:backgroundTint="@android:color/darker_gray" />
+                    android:orientation="vertical"
+                    android:layout_marginBottom="16dp">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Size"
+                        android:textSize="12sp"
+                        android:textColor="@color/secondary_text"
+                        android:layout_marginBottom="4dp" />
+
+                    <com.google.android.material.card.MaterialCardView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        app:cardBackgroundColor="@color/dropdown_background"
+                        app:cardCornerRadius="8dp"
+                        app:strokeColor="@color/dropdown_stroke"
+                        app:strokeWidth="1dp">
+
+                        <Spinner
+                            android:id="@+id/spinner_banner_size"
+                            android:layout_width="match_parent"
+                            android:layout_height="48dp"
+                            android:paddingStart="12dp"
+                            android:paddingEnd="12dp"
+                            android:background="@android:color/transparent" />
+                    </com.google.android.material.card.MaterialCardView>
+                </LinearLayout>
+
+                <!-- Action Button -->
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_load_banner"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:text="Load Banner Ad"
+                    android:textSize="14sp"
+                    android:icon="@android:drawable/ic_media_play"
+                    android:iconTint="@android:color/white"
+                    app:cornerRadius="8dp"
+                    app:backgroundTint="@color/blue_500"
+                    style="@style/Widget.Material3.Button.ElevatedButton" />
+
+                <!-- Ad Container -->
+                <LinearLayout
+                    android:id="@+id/banner_ad_container"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:minHeight="80dp"
+                    android:layout_marginTop="16dp"
+                    android:gravity="center"
+                    android:background="@drawable/bg_ad_container"
+                    android:padding="12dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="👆 Tap 'Load Banner Ad' to display"
+                        android:textSize="12sp"
+                        android:textColor="@color/tertiary_text"
+                        android:gravity="center" />
+                </LinearLayout>
+
             </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
 
-            <!-- Status Info -->
-            <TextView
-                android:id="@+id/tv_ad_status"
+        <!-- Native Ads Card -->
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            app:cardBackgroundColor="@color/card_surface"
+            app:cardCornerRadius="12dp"
+            app:cardElevation="4dp">
+
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Ad Status: Initializing..."
-                android:textSize="12sp"
-                android:textColor="@android:color/darker_gray"
-                android:gravity="center"
-                android:layout_marginTop="16dp"
-                android:padding="8dp"
-                android:background="@android:color/white"
-                android:elevation="2dp" />
-        </LinearLayout>
-    </ScrollView>
+                android:orientation="vertical"
+                android:padding="20dp">
 
-    <!-- Native Ad Container -->
-    <LinearLayout
-        android:id="@+id/native_container"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:gravity="center"
-        android:minHeight="120dp"
-        android:background="@android:color/white"
-        android:elevation="4dp"
-        android:padding="8dp"
-        app:layout_constraintBottom_toBottomOf="parent"
-        tools:background="@android:color/holo_green_light">
+                <!-- Header -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:layout_marginBottom="16dp">
 
-        <TextView
-            android:layout_width="wrap_content"
+                    <ImageView
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:layout_marginEnd="12dp"
+                        android:src="@drawable/googleg_standard_color_18"
+                        android:tint="@color/green_500" />
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Native Ads"
+                        android:textSize="18sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/primary_text" />
+
+                    <TextView
+                        android:id="@+id/tv_native_type"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="MEDIUM"
+                        android:textSize="12sp"
+                        android:textColor="@color/green_500"
+                        android:background="@drawable/bg_chip_green"
+                        android:paddingHorizontal="8dp"
+                        android:paddingVertical="4dp" />
+                </LinearLayout>
+
+                <!-- Configuration -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:layout_marginBottom="16dp">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Type"
+                        android:textSize="12sp"
+                        android:textColor="@color/secondary_text"
+                        android:layout_marginBottom="4dp" />
+
+                    <com.google.android.material.card.MaterialCardView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        app:cardBackgroundColor="@color/dropdown_background"
+                        app:cardCornerRadius="8dp"
+                        app:strokeColor="@color/dropdown_stroke"
+                        app:strokeWidth="1dp">
+
+                        <Spinner
+                            android:id="@+id/spinner_native_type"
+                            android:layout_width="match_parent"
+                            android:layout_height="48dp"
+                            android:paddingStart="12dp"
+                            android:paddingEnd="12dp"
+                            android:background="@android:color/transparent" />
+                    </com.google.android.material.card.MaterialCardView>
+                </LinearLayout>
+
+                <!-- Action Button -->
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_load_native"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:text="Load Native Ad"
+                    android:textSize="14sp"
+                    android:icon="@android:drawable/ic_media_play"
+                    android:iconTint="@android:color/white"
+                    app:cornerRadius="8dp"
+                    app:backgroundTint="@color/green_500"
+                    style="@style/Widget.Material3.Button.ElevatedButton" />
+
+                <!-- Ad Container -->
+                <LinearLayout
+                    android:id="@+id/native_ad_container"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:minHeight="120dp"
+                    android:layout_marginTop="16dp"
+                    android:gravity="center"
+                    android:background="@drawable/bg_ad_container"
+                    android:padding="12dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="👆 Tap 'Load Native Ad' to display"
+                        android:textSize="12sp"
+                        android:textColor="@color/tertiary_text"
+                        android:gravity="center" />
+                </LinearLayout>
+
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- Full-Screen Ads Section -->
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Native Ad will appear here"
-            android:textColor="@android:color/darker_gray"
-            android:textStyle="italic"
-            android:visibility="visible"
-            tools:visibility="gone" />
-    </LinearLayout>
+            android:orientation="horizontal"
+            android:layout_marginBottom="24dp">
 
-</androidx.constraintlayout.widget.ConstraintLayout>
+            <!-- Interstitial Card -->
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginEnd="8dp"
+                app:cardBackgroundColor="@color/card_surface"
+                app:cardCornerRadius="12dp"
+                app:cardElevation="4dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="20dp"
+                    android:gravity="center">
+
+                    <ImageView
+                        android:layout_width="40dp"
+                        android:layout_height="40dp"
+                        android:layout_marginBottom="12dp"
+                        android:src="@drawable/googleg_standard_color_18"
+                        android:tint="@color/orange_500" />
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Interstitial"
+                        android:textSize="16sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/primary_text"
+                        android:gravity="center"
+                        android:layout_marginBottom="8dp" />
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Full-screen ads between content"
+                        android:textSize="12sp"
+                        android:textColor="@color/secondary_text"
+                        android:gravity="center"
+                        android:layout_marginBottom="16dp" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btn_show_interstitial"
+                        android:layout_width="match_parent"
+                        android:layout_height="44dp"
+                        android:text="Show Now"
+                        android:textSize="13sp"
+                        app:cornerRadius="8dp"
+                        app:backgroundTint="@color/orange_500"
+                        style="@style/Widget.Material3.Button.OutlinedButton" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- App Open Card -->
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                app:cardBackgroundColor="@color/card_surface"
+                app:cardCornerRadius="12dp"
+                app:cardElevation="4dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="20dp"
+                    android:gravity="center">
+
+                    <ImageView
+                        android:layout_width="40dp"
+                        android:layout_height="40dp"
+                        android:layout_marginBottom="12dp"
+                        android:src="@drawable/googleg_standard_color_18"
+                        android:tint="@color/purple_500" />
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="App Open"
+                        android:textSize="16sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/primary_text"
+                        android:gravity="center"
+                        android:layout_marginBottom="8dp" />
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Show when app returns from background"
+                        android:textSize="12sp"
+                        android:textColor="@color/secondary_text"
+                        android:gravity="center"
+                        android:layout_marginBottom="16dp" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btn_test_app_open"
+                        android:layout_width="match_parent"
+                        android:layout_height="44dp"
+                        android:text="Test Now"
+                        android:textSize="13sp"
+                        app:cornerRadius="8dp"
+                        app:backgroundTint="@color/purple_500"
+                        style="@style/Widget.Material3.Button.OutlinedButton" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+        </LinearLayout>
+
+        <!-- Advanced Controls -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="⚙️ Advanced Controls"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:textColor="@color/primary_text"
+            android:layout_marginBottom="12dp" />
+
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:cardBackgroundColor="@color/card_surface"
+            app:cardCornerRadius="12dp"
+            app:cardElevation="4dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="20dp">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Ad Management"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/primary_text"
+                    android:layout_marginBottom="16dp" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_clear_ads"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:text="Clear All Ads"
+                    android:textSize="14sp"
+                    android:icon="@android:drawable/ic_menu_delete"
+                    android:iconTint="@android:color/white"
+                    app:cornerRadius="8dp"
+                    app:backgroundTint="@color/red_500"
+                    style="@style/Widget.Material3.Button.ElevatedButton"
+                    android:layout_marginBottom="8dp" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_refresh_ads"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:text="Refresh All Ads"
+                    android:textSize="14sp"
+                    android:icon="@android:drawable/ic_menu_revert"
+                    app:cornerRadius="8dp"
+                    style="@style/Widget.Material3.Button.OutlinedButton"
+                    android:layout_marginBottom="8dp" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_debug_info"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:text="Show Debug Info"
+                    android:textSize="14sp"
+                    android:icon="@android:drawable/ic_menu_info_details"
+                    app:cornerRadius="8dp"
+                    style="@style/Widget.Material3.Button.TextButton" />
+
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- Footer -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Ads Manager Pro v1.0 • Test Environment"
+            android:textSize="10sp"
+            android:textColor="@color/tertiary_text"
+            android:gravity="center"
+            android:layout_marginTop="24dp"
+            android:padding="12dp" />
+
+    </LinearLayout>
+</androidx.core.widget.NestedScrollView>

@@ -15,4 +15,19 @@
     <color name="text_primary">#212121</color>
     <color name="text_secondary">#757575</color>
     <color name="card_background">#FFFFFF</color>
+
+    <!-- Material Design Colors -->
+    <color name="blue_500">#2196F3</color>
+    <color name="blue_700">#1976D2</color>
+    <color name="green_500">#4CAF50</color>
+    <color name="green_700">#388E3C</color>
+    <color name="orange_500">#FF9800</color>
+    <color name="orange_700">#F57C00</color>
+    <color name="red_500">#F44336</color>
+    <color name="red_700">#D32F2F</color>
+
+    <!-- Light Colors -->
+    <color name="light_blue">#E3F2FD</color>
+    <color name="light_green">#E8F5E9</color>
+    <color name="light_gray">#F5F5F5</color>
 </resources>

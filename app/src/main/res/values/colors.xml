@@ -1,5 +1,101 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="black">#FF000000</color>
-    <color name="white">#FFFFFFFF</color>
+
+        <!-- Material Design 3 Color System -->
+        <color name="primary">#6750A4</color>
+        <color name="onPrimary">#FFFFFF</color>
+        <color name="primaryContainer">#EADDFF</color>
+        <color name="onPrimaryContainer">#21005D</color>
+
+        <color name="secondary">#625B71</color>
+        <color name="onSecondary">#FFFFFF</color>
+        <color name="secondaryContainer">#E8DEF8</color>
+        <color name="onSecondaryContainer">#1D192B</color>
+
+        <color name="tertiary">#7D5260</color>
+        <color name="onTertiary">#FFFFFF</color>
+        <color name="tertiaryContainer">#FFD8E4</color>
+        <color name="onTertiaryContainer">#31111D</color>
+
+        <!-- Surface Colors -->
+        <color name="surface">#FFFFFF</color>
+        <color name="surface_variant">#E7E0EC</color>
+        <color name="on_surface">#1C1B1F</color>
+        <color name="on_surface_variant">#49454F</color>
+
+        <!-- Background -->
+        <color name="background">#FEF7FF</color>
+        <color name="on_background">#1C1B1F</color>
+
+        <!-- Card Backgrounds -->
+        <color name="card_surface">#FFFFFF</color>
+        <color name="card_background">#F5F5F5</color>
+
+        <!-- Status Colors -->
+        <color name="success">#4CAF50</color>
+        <color name="warning">#FF9800</color>
+        <color name="error">#F44336</color>
+        <color name="info">#2196F3</color>
+
+        <!-- Text Colors -->
+        <color name="primary_text">#1C1B1F</color>
+        <color name="secondary_text">#49454F</color>
+        <color name="tertiary_text">#79747E</color>
+        <color name="disabled_text">#9E9E9E</color>
+
+        <!-- UI Elements -->
+        <color name="outline">#79747E</color>
+        <color name="outline_variant">#CAC4D0</color>
+        <color name="scrim">#000000</color>
+
+        <!-- Interactive States -->
+        <color name="primary_pressed">#5D3F8C</color>
+        <color name="surface_pressed">#F5F5F5</color>
+
+        <!-- Ad Status Colors -->
+        <color name="status_background">#E8F5E9</color>
+        <color name="status_text">#2E7D32</color>
+        <color name="status_stroke">#C8E6C9</color>
+
+        <!-- Dropdown/Spinner -->
+        <color name="dropdown_background">#FAFAFA</color>
+        <color name="dropdown_stroke">#E0E0E0</color>
+
+        <!-- Ripple Effects -->
+        <color name="ripple_color">#1F000000</color>
+        <color name="primary_ripple">#1A6750A4</color>
+
+        <!-- Custom Theme Colors (Backward Compatibility) -->
+        <color name="purple_500">#9C27B0</color>
+        <color name="purple_700">#7B1FA2</color>
+        <color name="blue_500">#2196F3</color>
+        <color name="blue_700">#1976D2</color>
+        <color name="green_500">#4CAF50</color>
+        <color name="green_700">#388E3C</color>
+        <color name="orange_500">#FF9800</color>
+        <color name="orange_700">#F57C00</color>
+        <color name="red_500">#F44336</color>
+        <color name="red_700">#D32F2F</color>
+        <color name="teal_200">#03DAC5</color>
+        <color name="teal_700">#018786</color>
+
+        <!-- Light background colors -->
+        <color name="light_blue">#E3F2FD</color>
+        <color name="light_green">#E8F5E9</color>
+        <color name="light_gray">#F5F5F5</color>
+        <color name="light_orange">#FFF3E0</color>
+        <color name="light_red">#FFEBEE</color>
+        <color name="light_purple">#F3E5F5</color>
+
+        <!-- Additional colors -->
+        <color name="black">#FF000000</color>
+        <color name="white">#FFFFFFFF</color>
+        <color name="transparent">#00000000</color>
+
+        <!-- Shadow Colors -->
+        <color name="shadow_low">#0D000000</color>
+        <color name="shadow_medium">#1A000000</color>
+        <color name="shadow_high">#26000000</color>
+
+
 </resources>
