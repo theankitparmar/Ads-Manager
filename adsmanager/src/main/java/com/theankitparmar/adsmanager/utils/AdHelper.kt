@@ -87,8 +87,17 @@ object AdHelper {
         // Calculate expected banner height in pixels
         val bannerHeightPx = adSize.getHeightInPixels(context)
 
-        // Set container height to match the ad size
-        container.post {
+        // Set container height to match the ad size with null safety
+        if (container.isAttachedToWindow) {
+            container.post {
+                if (container.isAttachedToWindow) {
+                    container.layoutParams = container.layoutParams?.apply {
+                        height = bannerHeightPx
+                    }
+                }
+            }
+        } else {
+            // If not attached, set directly
             container.layoutParams = container.layoutParams?.apply {
                 height = bannerHeightPx
             }
@@ -125,41 +134,55 @@ object AdHelper {
                 Log.d(TAG, "Banner ad loaded successfully")
 
                 Handler(Looper.getMainLooper()).post {
-                    hideShimmerEffect(shimmerContainer)
-                    container.removeView(shimmerContainer)
-
-                    val adView = bannerAd.getAdView()
-                    if (adView != null) {
-                        // Remove from any existing parent
-                        (adView.parent as? ViewGroup)?.removeView(adView)
-
-                        // Measure the actual ad to get exact dimensions
-                        adView.measure(
-                            View.MeasureSpec.makeMeasureSpec(
-                                container.measuredWidth,
-                                View.MeasureSpec.EXACTLY
-                            ),
-                            View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
-                        )
-
-                        val actualAdHeight = adView.measuredHeight
-
-                        // Update container to match actual ad height
-                        container.layoutParams = container.layoutParams?.apply {
-                            height = actualAdHeight
+                    try {
+                        hideShimmerEffect(shimmerContainer)
+                        if (shimmerContainer.parent == container) {
+                            container.removeView(shimmerContainer)
                         }
 
-                        // Set ad view layout params
-                        adView.layoutParams = FrameLayout.LayoutParams(
-                            FrameLayout.LayoutParams.MATCH_PARENT,
-                            FrameLayout.LayoutParams.WRAP_CONTENT
-                        )
+                        val adView = bannerAd.getAdView()
+                        if (adView != null && container.isAttachedToWindow) {
+                            // Remove from any existing parent
+                            (adView.parent as? ViewGroup)?.removeView(adView)
 
-                        // Add ad to container
-                        container.removeAllViews()
-                        container.addView(adView)
+                            // Measure the actual ad to get exact dimensions
+                            adView.measure(
+                                View.MeasureSpec.makeMeasureSpec(
+                                    container.measuredWidth,
+                                    View.MeasureSpec.EXACTLY
+                                ),
+                                View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
+                            )
 
-                        onAdLoaded?.invoke()
+                            val actualAdHeight = adView.measuredHeight
+
+                            // Update container to match actual ad height
+                            container.layoutParams = container.layoutParams?.apply {
+                                height = actualAdHeight
+                            }
+
+                            // Set ad view layout params
+                            adView.layoutParams = FrameLayout.LayoutParams(
+                                FrameLayout.LayoutParams.MATCH_PARENT,
+                                FrameLayout.LayoutParams.WRAP_CONTENT
+                            )
+
+                            // Add ad to container
+                            container.removeAllViews()
+                            container.addView(adView)
+
+                            // Also attach to BannerAd for reference
+                            bannerAd.attachToContainer(container)
+
+                            Log.d(TAG, "✓ Banner ad attached to container successfully")
+                            onAdLoaded?.invoke()
+                        } else if (adView == null) {
+                            Log.w(TAG, "AdView is null after load")
+                            onAdFailed?.invoke("AdView not available")
+                        }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error attaching banner ad: ${e.message}", e)
+                        onAdFailed?.invoke("Error: ${e.message}")
                     }
                 }
             }
@@ -167,9 +190,15 @@ object AdHelper {
             override fun onAdFailedToLoad(error: String) {
                 Log.e(TAG, "Banner ad failed to load. Error: $error")
                 Handler(Looper.getMainLooper()).post {
-                    hideShimmerEffect(shimmerContainer)
-                    container.removeView(shimmerContainer)
-                    onAdFailed?.invoke(error)
+                    try {
+                        hideShimmerEffect(shimmerContainer)
+                        if (shimmerContainer.parent == container) {
+                            container.removeView(shimmerContainer)
+                        }
+                        onAdFailed?.invoke(error)
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error handling failed banner load: ${e.message}")
+                    }
                 }
             }
 

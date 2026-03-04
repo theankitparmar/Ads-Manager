@@ -304,7 +304,7 @@ class MainActivity : BaseAdsActivity() {
         binding.bannerAdContainer.removeAllViews()
         binding.nativeAdContainer.removeAllViews()
 
-        // Add back the placeholder text
+        // Restore placeholder for banner
         val bannerPlaceholder = android.widget.TextView(this).apply {
             text = "👆 Tap 'Load Banner Ad' to display"
             setTextColor(resources.getColor(R.color.tertiary_text))
@@ -313,13 +313,21 @@ class MainActivity : BaseAdsActivity() {
         }
         binding.bannerAdContainer.addView(bannerPlaceholder)
 
+        // Restore placeholder for native (use FrameLayout gravity centering)
         val nativePlaceholder = android.widget.TextView(this).apply {
             text = "👆 Tap 'Load Native Ad' to display"
             setTextColor(resources.getColor(R.color.tertiary_text))
             gravity = android.view.Gravity.CENTER
             setPadding(16, 16, 16, 16)
         }
-        binding.nativeAdContainer.addView(nativePlaceholder)
+        // Use FrameLayout.LayoutParams to center the placeholder
+        val params = android.widget.FrameLayout.LayoutParams(
+            android.widget.FrameLayout.LayoutParams.WRAP_CONTENT,
+            android.widget.FrameLayout.LayoutParams.WRAP_CONTENT
+        ).apply {
+            gravity = android.view.Gravity.CENTER
+        }
+        binding.nativeAdContainer.addView(nativePlaceholder, params)
 
         // Also clear the ad helper's internal references
         AdHelper.destroyAds()

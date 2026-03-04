@@ -12,6 +12,20 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import kotlin.coroutines.resume
 
+/**
+ * Interstitial Ad implementation for Google AdMob
+ * Displays full-screen ads with support for auto-reload on dismissal
+ * 
+ * Features:
+ * - Full-screen ad display
+ * - Automatic retry on failure
+ * - Revenue tracking
+ * - Ad lifecycle callbacks
+ * 
+ * @param context The Android context
+ * @param adUnitId The AdMob interstitial ad unit ID
+ * @param config Ad configuration settings
+ */
 class InterstitialAd(
     context: Context,
     adUnitId: String,
@@ -34,110 +48,142 @@ class InterstitialAd(
             val adRequest = com.google.android.gms.ads.AdRequest.Builder().build()
 
             val result = suspendCancellableCoroutine<AdResult<Unit>> { continuation ->
-                com.google.android.gms.ads.interstitial.InterstitialAd.load(
-                    context,
-                    getAdUnitId(),
-                    adRequest,
-                    object : com.google.android.gms.ads.interstitial.InterstitialAdLoadCallback() {
-                        override fun onAdLoaded(ad: com.google.android.gms.ads.interstitial.InterstitialAd) {
-                            interstitialAd = ad
+                try {
+                    com.google.android.gms.ads.interstitial.InterstitialAd.load(
+                        context,
+                        getAdUnitId(),
+                        adRequest,
+                        object : com.google.android.gms.ads.interstitial.InterstitialAdLoadCallback() {
+                            override fun onAdLoaded(ad: com.google.android.gms.ads.interstitial.InterstitialAd) {
+                                interstitialAd = ad
 
-                            ad.fullScreenContentCallback = object : com.google.android.gms.ads.FullScreenContentCallback() {
-                                // Inside InterstitialAd.kt
-                                override fun onAdDismissedFullScreenContent() {
-                                    interstitialAd = null
-                                    _listener?.onAdDismissed()
-                                    emitEvent(AdEvent.Dismissed(AdType.INTERSTITIAL, getAdId()))
+                                ad.fullScreenContentCallback = object : com.google.android.gms.ads.FullScreenContentCallback() {
+                                    override fun onAdDismissedFullScreenContent() {
+                                        interstitialAd = null
+                                        _listener?.onAdDismissed()
+                                        emitEvent(AdEvent.Dismissed(AdType.INTERSTITIAL, getAdId()))
+                                        android.util.Log.d("InterstitialAd", "✓ Ad dismissed")
 
-                                    if (config.enableAutoReload) {
-                                        // Only load if we aren't already loading
+                                        if (config.enableAutoReload) {
+                                            android.util.Log.d("InterstitialAd", "Auto-reloading ad...")
+                                            loadAd()
+                                        }
+                                    }
+
+                                    override fun onAdFailedToShowFullScreenContent(error: com.google.android.gms.ads.AdError) {
+                                        interstitialAd = null
+                                        _listener?.onAdFailedToShow(error.message)
+                                        emitEvent(AdEvent.Failed(
+                                            AdType.INTERSTITIAL,
+                                            CustomAdError.fromAdError(error),
+                                            getAdId()
+                                        ))
+                                        android.util.Log.e("InterstitialAd", "✗ Failed to show: ${error.message}")
                                         loadAd()
+                                    }
+
+                                    override fun onAdImpression() {
+                                        _listener?.onAdImpression()
+                                        emitEvent(AdEvent.Impression(AdType.INTERSTITIAL, getAdId()))
+                                        android.util.Log.d("InterstitialAd", "Ad impression recorded")
+                                    }
+
+                                    override fun onAdShowedFullScreenContent() {
+                                        emitEvent(AdEvent.Opened(AdType.INTERSTITIAL, getAdId()))
+                                        android.util.Log.d("InterstitialAd", "✓ Ad displayed")
+                                    }
+
+                                    override fun onAdClicked() {
+                                        _listener?.onAdClicked()
+                                        emitEvent(AdEvent.Clicked(AdType.INTERSTITIAL, getAdId()))
+                                        android.util.Log.d("InterstitialAd", "Ad clicked")
                                     }
                                 }
 
-                                override fun onAdFailedToShowFullScreenContent(error: com.google.android.gms.ads.AdError) {
-                                    interstitialAd = null
-                                    _listener?.onAdFailedToShow(error.message)
-                                    emitEvent(AdEvent.Failed(
+                                // Set revenue callback
+                                ad.setOnPaidEventListener { adValue ->
+                                    _listener?.onAdRevenue(adValue)
+                                    emitEvent(AdEvent.Revenue(
                                         AdType.INTERSTITIAL,
-                                        CustomAdError.fromAdError(error),
+                                        adValue.valueMicros,
+                                        adValue.currencyCode,
+                                        adValue.precisionType,
                                         getAdId()
                                     ))
-                                    loadAd()
+                                    android.util.Log.d("InterstitialAd", "Revenue: ${adValue.valueMicros} ${adValue.currencyCode}")
                                 }
 
-                                override fun onAdImpression() {
-                                    _listener?.onAdImpression()
-                                    emitEvent(AdEvent.Impression(AdType.INTERSTITIAL, getAdId()))
-                                }
+                                // Emit loaded event
+                                _listener?.onAdLoaded()
+                                emitEvent(AdEvent.Loaded(AdType.INTERSTITIAL, getAdId()))
+                                android.util.Log.d("InterstitialAd", "✓ Interstitial ad loaded successfully")
 
-                                override fun onAdShowedFullScreenContent() {
-                                    emitEvent(AdEvent.Opened(AdType.INTERSTITIAL, getAdId()))
-                                }
-
-                                override fun onAdClicked() {
-                                    _listener?.onAdClicked()
-                                    emitEvent(AdEvent.Clicked(AdType.INTERSTITIAL, getAdId()))
+                                if (!continuation.isCancelled) {
+                                    continuation.resume(AdResult.Success(Unit))
                                 }
                             }
 
-                            // Set revenue callback
-                            ad.setOnPaidEventListener { adValue ->
-                                _listener?.onAdRevenue(adValue)
-                                emitEvent(AdEvent.Revenue(
+                            override fun onAdFailedToLoad(error: com.google.android.gms.ads.LoadAdError) {
+                                _listener?.onAdFailedToLoad(error.message)
+                                emitEvent(AdEvent.Failed(
                                     AdType.INTERSTITIAL,
-                                    adValue.valueMicros,
-                                    adValue.currencyCode,
-                                    adValue.precisionType,
+                                    CustomAdError.fromLoadAdError(error),
                                     getAdId()
                                 ))
-                            }
+                                android.util.Log.e("InterstitialAd", "✗ Failed to load: ${error.message}")
 
-                            if (!continuation.isCancelled) {
-                                continuation.resume(AdResult.Success(Unit))
-                            }
-                        }
-
-                        override fun onAdFailedToLoad(error: com.google.android.gms.ads.LoadAdError) {
-                            _listener?.onAdFailedToLoad(error.message)
-                            emitEvent(AdEvent.Failed(
-                                AdType.INTERSTITIAL,
-                                CustomAdError.fromLoadAdError(error),
-                                getAdId()
-                            ))
-
-                            if (!continuation.isCancelled) {
-                                continuation.resume(AdResult.Error(error.message))
+                                if (!continuation.isCancelled) {
+                                    continuation.resume(AdResult.Error(error.message ?: "Unknown error"))
+                                }
                             }
                         }
+                    )
+                } catch (e: Exception) {
+                    android.util.Log.e("InterstitialAd", "Exception during load: ${e.message}", e)
+                    if (!continuation.isCancelled) {
+                        continuation.resume(AdResult.Error("Exception: ${e.message}"))
                     }
-                )
+                }
             }
 
             result
         } catch (e: Exception) {
+            android.util.Log.e("InterstitialAd", "Error in loadAdInternal: ${e.message}", e)
             AdResult.Error(e.message ?: "Unknown error")
         }
     }
 
     override fun showAd(activity: Activity?) {
         if (interstitialAd != null && activity != null && !activity.isFinishing) {
-            interstitialAd?.show(activity)
+            try {
+                interstitialAd?.show(activity)
+                android.util.Log.d("InterstitialAd", "Attempting to show interstitial ad")
+            } catch (e: Exception) {
+                android.util.Log.e("InterstitialAd", "Error showing ad: ${e.message}", e)
+                _listener?.onAdFailedToShow("Error: ${e.message}")
+            }
         } else {
-            _listener?.onAdFailedToShow("Ad not loaded or activity invalid")
+            val reason = when {
+                interstitialAd == null -> "Ad not loaded"
+                activity == null -> "Activity is null"
+                activity.isFinishing -> "Activity is finishing"
+                else -> "Unknown"
+            }
+            android.util.Log.w("InterstitialAd", "Cannot show ad: $reason")
+            _listener?.onAdFailedToShow(reason)
             emitEvent(AdEvent.Failed(
                 AdType.INTERSTITIAL,
-                CustomAdError.ShowError(1, "Ad not loaded or activity invalid"),
+                CustomAdError.ShowError(1, reason),
                 getAdId()
             ))
         }
     }
 
-    override fun destroy() {
-        super.destroy()
-        interstitialAd = null
-    }
-
+    /**
+     * Show ad if already loaded, without waiting
+     * 
+     * @return true if ad was shown, false if not loaded
+     */
     fun showIfLoaded(): Boolean {
         return if (interstitialAd != null) {
             showAdWithActivityCheck { activity ->
@@ -146,6 +192,15 @@ class InterstitialAd(
             true
         } else {
             false
+        }
+    }
+
+    override fun destroy() {
+        super.destroy()
+        try {
+            interstitialAd = null
+        } catch (e: Exception) {
+            android.util.Log.e("InterstitialAd", "Error during destroy: ${e.message}")
         }
     }
 }

@@ -460,25 +460,24 @@
                     app:backgroundTint="@color/green_500"
                     style="@style/Widget.Material3.Button.ElevatedButton" />
 
-                <!-- Ad Container -->
-                <LinearLayout
+                <!-- Ad Container with Fixed Height to Match Shimmer -->
+                <FrameLayout
                     android:id="@+id/native_ad_container"
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:minHeight="120dp"
+                    android:layout_height="500dp"
                     android:layout_marginTop="16dp"
-                    android:gravity="center"
-                    android:background="@drawable/bg_ad_container"
-                    android:padding="12dp">
+                    android:background="@drawable/bg_ad_container">
 
+                    <!-- Placeholder Text (shown before ad loads) -->
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
+                        android:layout_gravity="center"
                         android:text="👆 Tap 'Load Native Ad' to display"
                         android:textSize="12sp"
                         android:textColor="@color/tertiary_text"
                         android:gravity="center" />
-                </LinearLayout>
+                </FrameLayout>
 
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>

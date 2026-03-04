@@ -22,6 +22,28 @@ import kotlinx.coroutines.launch
 import com.theankitparmar.adsmanager.adInterface.AdsConfiguration
 import com.theankitparmar.adsmanager.core.AdUnits
 
+/**
+ * Central AdsManager for Google AdMob integration
+ * 
+ * Main features:
+ * - Single initialization for all ad types
+ * - Automatic ad preloading
+ * - App Open Ad management with lifecycle handling
+ * - Async/Sync API for ad access
+ * - Centralized configuration
+ * 
+ * Usage:
+ * ```
+ * val config = AdsConfig(
+ *     isTestMode = BuildConfig.DEBUG,
+ *     bannerAdUnitId = "...",
+ *     interstitialAdUnitId = "...",
+ *     nativeAdUnitId = "...",
+ *     appOpenAdUnitId = "..."
+ * )
+ * AdsManager.initialize(application, config)
+ * ```
+ */
 object AdsManager {
 
     private const val TAG = "AdsManager"
@@ -36,7 +58,13 @@ object AdsManager {
     private val scope = CoroutineScope(Dispatchers.Main)
 
     /**
-     * Simple initialization method - One call to rule them all!
+     * Initialize AdsManager with configuration
+     * 
+     * Must be called once in Application.onCreate()
+     * 
+     * @param application The Application instance
+     * @param config The ads configuration
+     * @param onInitialized Optional callback when initialization completes
      */
     fun initialize(
         application: Application,
@@ -53,7 +81,7 @@ object AdsManager {
         this.config = config
         isInitializing = true
 
-        Log.d(TAG, "Starting AdsManager initialization...")
+        Log.d(TAG, "🚀 Starting AdsManager initialization...")
 
         // Initialize AdMob SDK
         MobileAds.initialize(application) {
@@ -61,6 +89,10 @@ object AdsManager {
             isInitializing = false
 
             Log.d(TAG, "✅ AdMob SDK initialized successfully")
+            Log.d(TAG, "   Test Mode: ${config.isTestMode}")
+            Log.d(TAG, "   Debug Logging: ${config.enableDebugLogging}")
+            Log.d(TAG, "   App Open Ads: ${config.appOpenAdEnabled}")
+            
             initializationDeferred.complete(Unit)
 
             // Initialize AppOpenManager automatically
@@ -80,7 +112,7 @@ object AdsManager {
                 .setTestDeviceIds(testDeviceIds)
                 .build()
             MobileAds.setRequestConfiguration(configuration)
-            Log.d(TAG, "Test mode enabled")
+            Log.d(TAG, "🧪 Test mode enabled with emulator test device")
         }
     }
 
@@ -251,7 +283,7 @@ object AdsManager {
     }
 
     private fun preloadAds() {
-        Log.d(TAG, "Starting ad preloading...")
+        Log.d(TAG, "⏳ Starting ad preloading in background...")
 
         // Preload in background
         scope.launch {
@@ -260,7 +292,7 @@ object AdsManager {
                 getInterstitialAd(application)
                 Log.d(TAG, "✅ Interstitial ad preloaded")
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to preload interstitial: ${e.message}")
+                Log.e(TAG, "⚠️ Failed to preload interstitial: ${e.message}")
             }
 
             // Preload native
@@ -268,7 +300,7 @@ object AdsManager {
                 getNativeAd(application)
                 Log.d(TAG, "✅ Native ad preloaded")
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to preload native: ${e.message}")
+                Log.e(TAG, "⚠️ Failed to preload native: ${e.message}")
             }
 
             // Preload app open if enabled
@@ -277,11 +309,11 @@ object AdsManager {
                     getAppOpenAd(application)
                     Log.d(TAG, "✅ App Open ad preloaded")
                 } catch (e: Exception) {
-                    Log.e(TAG, "Failed to preload app open: ${e.message}")
+                    Log.e(TAG, "⚠️ Failed to preload app open: ${e.message}")
                 }
             }
 
-            Log.d(TAG, "✅ All ads preloaded successfully")
+            Log.d(TAG, "✅ All ads preloading completed")
         }
     }
 

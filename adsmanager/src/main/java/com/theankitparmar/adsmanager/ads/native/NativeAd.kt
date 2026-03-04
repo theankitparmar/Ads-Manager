@@ -116,9 +116,11 @@ class NativeAd(
             val result = suspendCancellableCoroutine<AdResult<Unit>> { continuation ->
                 adLoader = AdLoader.Builder(context, getAdUnitId())
                     .forNativeAd { ad ->
+                        // Destroy previous ad if exists
                         nativeAd?.destroy()
                         nativeAd = ad
 
+                        // Set revenue callback
                         ad.setOnPaidEventListener { adValue ->
                             _listener?.onAdRevenue(adValue)
                             emitEvent(AdEvent.Revenue(
@@ -130,6 +132,11 @@ class NativeAd(
                             ))
                         }
 
+                        // Emit loaded event
+                        _listener?.onAdLoaded()
+                        emitEvent(AdEvent.Loaded(AdType.NATIVE, getAdId()))
+
+                        // Resume continuation only once
                         if (!continuation.isCancelled) {
                             continuation.resume(AdResult.Success(Unit))
                         }
@@ -144,7 +151,7 @@ class NativeAd(
                             ))
 
                             if (!continuation.isCancelled) {
-                                continuation.resume(AdResult.Error(error.message))
+                                continuation.resume(AdResult.Error(error.message ?: "Unknown error"))
                             }
                         }
 
@@ -157,19 +164,35 @@ class NativeAd(
                             _listener?.onAdImpression()
                             emitEvent(AdEvent.Impression(AdType.NATIVE, getAdId()))
                         }
+
+                        override fun onAdOpened() {
+                            emitEvent(AdEvent.Opened(AdType.NATIVE, getAdId()))
+                        }
+
+                        override fun onAdClosed() {
+                            emitEvent(AdEvent.Closed(AdType.NATIVE, getAdId()))
+                        }
                     })
                     .withNativeAdOptions(
                         NativeAdOptions.Builder()
                             .setVideoOptions(VideoOptions.Builder().setStartMuted(true).build())
+                            .setMediaAspectRatio(NativeAdOptions.NATIVE_MEDIA_ASPECT_RATIO_LANDSCAPE)
                             .build())
                     .build()
 
-                adLoader?.loadAd(AdRequest.Builder().build())
+                // Load ad with error handling
+                try {
+                    adLoader?.loadAd(AdRequest.Builder().build())
+                } catch (e: Exception) {
+                    if (!continuation.isCancelled) {
+                        continuation.resume(AdResult.Error("Failed to load ad: ${e.message}"))
+                    }
+                }
             }
 
             result
         } catch (e: Exception) {
-            AdResult.Error(e.message ?: "Unknown error")
+            AdResult.Error(e.message ?: "Unknown error loading native ad")
         }
     }
 

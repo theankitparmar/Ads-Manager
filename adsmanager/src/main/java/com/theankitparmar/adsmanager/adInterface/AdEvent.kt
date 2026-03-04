@@ -1,6 +1,8 @@
 // AdEvent.kt
 package com.theankitparmar.adsmanager.adInterface
 
+import com.theankitparmar.adsmanager.adInterface.AdEvent
+
 sealed class AdEvent {
     data class Loaded(val adType: AdType, val adId: String? = null) : AdEvent()
     data class Failed(val adType: AdType, val error: CustomAdError, val adId: String? = null) : AdEvent()
@@ -15,6 +17,7 @@ sealed class AdEvent {
     ) : AdEvent()
     data class Dismissed(val adType: AdType, val adId: String? = null) : AdEvent()
     data class Opened(val adType: AdType, val adId: String? = null) : AdEvent()
+    data class Closed(val native: AdType, val adId: String) : AdEvent()
 }
 
 enum class AdType {

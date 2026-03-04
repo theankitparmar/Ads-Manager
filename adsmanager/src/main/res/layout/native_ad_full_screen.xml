@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Full-screen native ad layout - fixed dimensions matching container -->
 <com.google.android.gms.ads.nativead.NativeAdView
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
+    android:layout_height="500dp"
     android:background="@drawable/card_background">
 
     <LinearLayout
@@ -19,7 +20,7 @@
             android:layout_weight="2"
             android:background="#F5F5F5" />
 
-        <!-- Content Area (Bottom 1/3 of space) -->
+        <!-- Content Area (Bottom 1/3 of space) - Exactly matches shimmer -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="0dp"
@@ -69,7 +70,7 @@
                 </LinearLayout>
             </LinearLayout>
 
-            <!-- Body Text -->
+            <!-- Body Text - Uses layout_weight to fill space -->
             <TextView
                 android:id="@+id/ad_body"
                 android:layout_width="match_parent"
@@ -82,7 +83,7 @@
                 android:textColor="#424242"
                 android:textSize="15sp" />
 
-            <!-- Call to Action Button (Full Width) -->
+            <!-- Call to Action Button (Fixed Height) -->
             <Button
                 android:id="@+id/ad_call_to_action"
                 android:layout_width="match_parent"
